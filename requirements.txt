@@ -1,0 +1,19 @@
+# Core dependencies
+numpy>=1.21.0
+pandas>=1.3.0
+matplotlib>=3.4.0
+seaborn>=0.11.0
+requests>=2.25.0
+
+# Jupyter notebook support
+jupyter>=1.0.0
+ipywidgets>=7.6.0
+
+# Development tools (optional)
+pytest>=6.0.0
+black>=21.0.0
+flake8>=3.9.0
+
+# Optional dependencies for enhanced functionality
+scipy>=1.7.0  # For advanced statistical analysis
+plotly>=5.0.0  # For interactive plots

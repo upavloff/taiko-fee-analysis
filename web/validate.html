@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Taiko Explorer Validation</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .pass { background: #d4edda; border: 1px solid #c3e6cb; }
+        .fail { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Taiko Fee Explorer - Validation Tests</h1>
+    <div id="results"></div>
+
+    <!-- Load dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@11.11.0/lib/browser/math.min.js"></script>
+
+    <!-- Load our modules -->
+    <script src="simulator.js"></script>
+    <script src="charts.js"></script>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        let testResults = [];
+
+        function addTest(name, passed, details = '') {
+            testResults.push({name, passed, details});
+            const testDiv = document.createElement('div');
+            testDiv.className = `test ${passed ? 'pass' : 'fail'}`;
+            testDiv.innerHTML = `
+                <h3>${passed ? '✅' : '❌'} ${name}</h3>
+                ${details ? `<pre>${details}</pre>` : ''}
+            `;
+            resultsDiv.appendChild(testDiv);
+        }
+
+        function runTests() {
+            console.log('Starting validation tests...');
+
+            try {
+                // Test 1: Dependencies loaded
+                addTest('Dependencies Check',
+                    typeof Chart !== 'undefined' && typeof math !== 'undefined',
+                    `Chart.js: ${typeof Chart}\nMath.js: ${typeof math}`
+                );
+
+                // Test 2: Core classes defined
+                const coreClassesExist = typeof GeometricBrownianMotion === 'function' &&
+                                       typeof TaikoFeeSimulator === 'function' &&
+                                       typeof MetricsCalculator === 'function' &&
+                                       typeof ChartManager === 'function';
+
+                addTest('Core Classes Loaded', coreClassesExist,
+                    `GeometricBrownianMotion: ${typeof GeometricBrownianMotion}\n` +
+                    `TaikoFeeSimulator: ${typeof TaikoFeeSimulator}\n` +
+                    `MetricsCalculator: ${typeof MetricsCalculator}\n` +
+                    `ChartManager: ${typeof ChartManager}`
+                );
+
+                // Test 3: GBM functionality
+                const gbm = new GeometricBrownianMotion(0.0, 0.3, 10e9);
+                const gbmValue1 = gbm.step();
+                const gbmValue2 = gbm.step();
+                const gbmWorks = gbmValue1 > 0 && gbmValue2 > 0 && gbmValue1 !== gbmValue2;
+
+                addTest('Geometric Brownian Motion', gbmWorks,
+                    `Initial value: ${(10e9/1e9).toFixed(1)} gwei\n` +
+                    `Step 1: ${(gbmValue1/1e9).toFixed(2)} gwei\n` +
+                    `Step 2: ${(gbmValue2/1e9).toFixed(2)} gwei`
+                );
+
+                // Test 4: Simulator creation
+                const params = {
+                    mu: 0.4, nu: 0.3, H: 144,
+                    l1Volatility: 0.3, vaultInit: 'target',
+                    targetBalance: 1000
+                };
+
+                const simulator = new TaikoFeeSimulator(params);
+                const simulatorWorks = simulator.mu === 0.4 &&
+                                     simulator.vaultBalance === 1000 &&
+                                     typeof simulator.runSimulation === 'function';
+
+                addTest('Simulator Creation', simulatorWorks,
+                    `μ: ${simulator.mu}\n` +
+                    `ν: ${simulator.nu}\n` +
+                    `H: ${simulator.H}\n` +
+                    `Initial Vault: ${simulator.vaultBalance} ETH\n` +
+                    `L1 Volatility: ${params.l1Volatility}`
+                );
+
+                // Test 5: Short simulation
+                const results = simulator.runSimulation(15);
+                const simulationWorks = Array.isArray(results) &&
+                                      results.length === 15 &&
+                                      results.every(r => typeof r.estimatedFee === 'number');
+
+                addTest('Simulation Execution', simulationWorks,
+                    `Data points: ${results.length}\n` +
+                    `First fee: ${results[0].estimatedFee.toExponential(2)} ETH\n` +
+                    `Last fee: ${results[results.length-1].estimatedFee.toExponential(2)} ETH\n` +
+                    `Final vault: ${results[results.length-1].vaultBalance.toFixed(1)} ETH`
+                );
+
+                // Test 6: Metrics calculation
+                const metricsCalc = new MetricsCalculator(1000);
+                const metrics = metricsCalc.calculateMetrics(results);
+                const metricsWork = typeof metrics.avgFee === 'number' &&
+                                  typeof metrics.feeCV === 'number' &&
+                                  typeof metrics.timeUnderfundedPct === 'number' &&
+                                  metrics.avgFee > 0;
+
+                addTest('Metrics Calculation', metricsWork,
+                    `Average Fee: ${metrics.avgFee.toExponential(2)} ETH\n` +
+                    `Fee CV: ${metrics.feeCV.toFixed(3)}\n` +
+                    `Time Underfunded: ${metrics.timeUnderfundedPct.toFixed(1)}%\n` +
+                    `L1 Tracking Error: ${metrics.l1TrackingError.toFixed(3)}`
+                );
+
+                // Test 7: Presets availability
+                const presetsWork = typeof PRESETS === 'object' &&
+                                  PRESETS['balanced'] &&
+                                  PRESETS['balanced'].mu === 0.4;
+
+                addTest('Preset Configurations', presetsWork,
+                    `Available presets: ${Object.keys(PRESETS).join(', ')}\n` +
+                    `Balanced preset μ: ${PRESETS['balanced']?.mu}\n` +
+                    `Fee Stability preset μ: ${PRESETS['fee-stability']?.mu}`
+                );
+
+                // Test 8: Chart manager
+                const chartManager = new ChartManager();
+                const chartManagerWorks = typeof chartManager.createFeeChart === 'function' &&
+                                        typeof chartManager.updateMetricCard === 'function';
+
+                addTest('Chart Manager', chartManagerWorks,
+                    `Chart creation methods: ${typeof chartManager.createFeeChart}\n` +
+                    `Metric update methods: ${typeof chartManager.updateMetricCard}\n` +
+                    `Colors defined: ${Object.keys(chartManager.colors).join(', ')}`
+                );
+
+                // Test 9: Fee calculation edge cases
+                const feeNoDeficit = simulator.calculateFee(10e9, 0);
+                const feeWithDeficit = simulator.calculateFee(10e9, 500);
+                const feesLogical = feeWithDeficit > feeNoDeficit && feeNoDeficit >= simulator.minFee;
+
+                addTest('Fee Calculation Logic', feesLogical,
+                    `Fee (no deficit): ${feeNoDeficit.toExponential(2)} ETH\n` +
+                    `Fee (500 ETH deficit): ${feeWithDeficit.toExponential(2)} ETH\n` +
+                    `Minimum fee: ${simulator.minFee.toExponential(2)} ETH\n` +
+                    `Logical order: ${feeWithDeficit > feeNoDeficit ? 'Yes' : 'No'}`
+                );
+
+                // Summary
+                const passedTests = testResults.filter(t => t.passed).length;
+                const totalTests = testResults.length;
+                const allPassed = passedTests === totalTests;
+
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = `test ${allPassed ? 'pass' : 'fail'}`;
+                summaryDiv.innerHTML = `
+                    <h2>📊 Test Summary</h2>
+                    <h3>${allPassed ? '🎉 All Tests Passed!' : '⚠️ Some Tests Failed'}</h3>
+                    <p><strong>Passed:</strong> ${passedTests}/${totalTests}</p>
+                    ${allPassed ?
+                        '<p>✅ The Taiko Fee Explorer is ready to use!</p>' :
+                        '<p>❌ Please check the failed tests above.</p>'}
+                `;
+
+                resultsDiv.appendChild(summaryDiv);
+
+                console.log(`Validation complete: ${passedTests}/${totalTests} tests passed`);
+
+            } catch (error) {
+                addTest('Critical Error', false,
+                    `Error: ${error.message}\n\nStack trace:\n${error.stack}`
+                );
+                console.error('Validation failed with error:', error);
+            }
+        }
+
+        // Run tests when page loads
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taiko Fee Mechanism Explorer</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@11.11.0/lib/browser/math.min.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Taiko Fee Explorer</h1>
+            </div>
+
+
+            <!-- Parameter Controls -->
+            <div class="parameters-section">
+                <h3>Parameter Controls</h3>
+
+                <!-- Mu Parameter -->
+                <div class="parameter-group">
+                    <label for="mu-slider" class="parameter-label">
+                        μ (L1 Weight): <span id="mu-value">0.4</span>
+                        <span class="tooltip" data-tooltip="Controls how much L1 costs influence fees. Higher values make fees track L1 basefee more closely.">ℹ️</span>
+                    </label>
+                    <input type="range" id="mu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.4">
+                    <div class="range-labels">
+                        <span>0.0</span>
+                        <span>1.0</span>
+                    </div>
+                </div>
+
+                <!-- Nu Parameter -->
+                <div class="parameter-group">
+                    <label for="nu-slider" class="parameter-label">
+                        ν (Deficit Weight): <span id="nu-value">0.3</span>
+                        <span class="tooltip" data-tooltip="Controls strength of vault deficit correction. Higher values = faster correction.">ℹ️</span>
+                    </label>
+                    <input type="range" id="nu-slider" class="parameter-slider" min="0.1" max="0.9" step="0.05" value="0.3">
+                    <div class="range-labels">
+                        <span>0.1</span>
+                        <span>0.9</span>
+                    </div>
+                </div>
+
+                <!-- H Parameter -->
+                <div class="parameter-group">
+                    <label for="H-slider" class="parameter-label">
+                        H (Horizon): <span id="H-value">144</span> steps
+                        <span class="tooltip" data-tooltip="Time horizon for L1 cost prediction. 144 steps ≈ 1 day.">ℹ️</span>
+                    </label>
+                    <input type="range" id="H-slider" class="parameter-slider" min="24" max="576" step="24" value="144">
+                    <div class="range-labels">
+                        <span>24</span>
+                        <span>576</span>
+                    </div>
+                </div>
+
+                <!-- Vault Initialization -->
+                <div class="parameter-group">
+                    <label for="vault-init" class="parameter-label">
+                        Vault Init
+                        <span class="tooltip" data-tooltip="Starting vault balance. Critical for meaningful analysis.">ℹ️</span>
+                    </label>
+                    <select id="vault-init" class="parameter-select">
+                        <option value="target">At Target</option>
+                        <option value="underfunded-20">20% Underfunded</option>
+                        <option value="underfunded-50">50% Underfunded</option>
+                        <option value="overfunded-20">20% Overfunded</option>
+                    </select>
+                </div>
+
+                <!-- L1 Data Source -->
+                <div class="parameter-group">
+                    <label class="parameter-label">
+                        L1 Base Fee Data Source
+                        <span class="tooltip" data-tooltip="Choose between historical Ethereum data or simulated GBM model">ℹ️</span>
+                    </label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="l1-source" value="simulated">
+                            <span>Simulated</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="l1-source" value="historical" checked>
+                            <span>Historical</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Simulation Seed -->
+                <div class="parameter-group" id="seed-group">
+                    <label for="seed-input" class="parameter-label">
+                        Simulation Seed
+                        <span class="tooltip" data-tooltip="Random seed for reproducible simulations">ℹ️</span>
+                    </label>
+                    <input type="number" id="seed-input" class="parameter-input" value="42" min="0" max="999999">
+                </div>
+
+                <!-- L1 Volatility -->
+                <div class="parameter-group" id="volatility-group">
+                    <label for="volatility-slider" class="parameter-label">
+                        L1 Volatility: <span id="volatility-value">0.3</span>
+                        <span class="tooltip" data-tooltip="Simulated L1 market volatility. 0.3 = normal, 0.8 = crisis.">ℹ️</span>
+                    </label>
+                    <input type="range" id="volatility-slider" class="parameter-slider" min="0.1" max="1.0" step="0.1" value="0.3">
+                    <div class="range-labels">
+                        <span>0.1</span>
+                        <span>1.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Presets -->
+            <div class="preset-section">
+                <h3>Quick Presets</h3>
+                <div class="preset-buttons">
+                    <button class="preset-btn" data-preset="fee-stability">💰 Fee Stability</button>
+                    <button class="preset-btn" data-preset="vault-management">🏦 Vault Management</button>
+                    <button class="preset-btn" data-preset="l1-tracking">🎯 L1 Tracking</button>
+                    <button class="preset-btn" data-preset="balanced">⚖️ Balanced</button>
+                    <button class="preset-btn" data-preset="conservative">🛡️ Conservative</button>
+                    <button class="preset-btn" data-preset="aggressive">⚡ Aggressive</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Fee Formula Header -->
+            <div class="formula-header">
+                <div class="formula-content">
+                    <h2>Taiko Fee Mechanism</h2>
+                    <div class="formula-container-main">
+                        $$F(t) = \max\left(\mu \times C_{L1}(t) + \nu \times \frac{D(t)}{H}, F_{\text{min}}\right)$$
+                        <button id="formula-info-btn" class="formula-info-btn" title="Toggle formula parameters">ⓘ</button>
+                    </div>
+                    <!-- Compact Info Box -->
+                    <div id="formula-info-box" class="formula-info-box" style="display: none;">
+                        <div class="info-grid">
+                            <div class="info-item"><strong>F(t)</strong>: Fee at time t | <strong>μ</strong>: L1 weight (<span id="info-mu">0.4</span>) | <strong>ν</strong>: Deficit weight (<span id="info-nu">0.3</span>)</div>
+                            <div class="info-item"><strong>C<sub>L1</sub>(t)</strong>: L1 cost per tx | <strong>D(t)</strong>: Vault deficit | <strong>H</strong>: Horizon (<span id="info-h">144</span> steps) | <strong>F<sub>min</sub></strong>: Min fee (1e-8 ETH)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <canvas id="fee-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="vault-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="l1-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="correlation-chart"></canvas>
+                    </div>
+                </div>
+                <!-- Loading Overlay -->
+                <div id="loading-overlay" class="loading-overlay" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Running simulation...</p>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="metrics-section">
+                <h3>Performance Metrics</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card" id="avg-fee-card">
+                        <div class="metric-label">Average Fee</div>
+                        <div class="metric-value" id="avg-fee-value">-</div>
+                        <div class="metric-unit">ETH</div>
+                        <div class="metric-status" id="avg-fee-status"></div>
+                    </div>
+                    <div class="metric-card" id="fee-cv-card">
+                        <div class="metric-label">Fee Variability</div>
+                        <div class="metric-value" id="fee-cv-value">-</div>
+                        <div class="metric-unit">CV</div>
+                        <div class="metric-status" id="fee-cv-status"></div>
+                    </div>
+                    <div class="metric-card" id="underfunded-card">
+                        <div class="metric-label">Time Underfunded</div>
+                        <div class="metric-value" id="underfunded-value">-</div>
+                        <div class="metric-unit">%</div>
+                        <div class="metric-status" id="underfunded-status"></div>
+                    </div>
+                    <div class="metric-card" id="tracking-card">
+                        <div class="metric-label">L1 Tracking Error</div>
+                        <div class="metric-value" id="tracking-value">-</div>
+                        <div class="metric-unit">ratio</div>
+                        <div class="metric-status" id="tracking-status"></div>
+                    </div>
+                </div>
+
+                <!-- Metrics Explanation -->
+                <div class="metrics-explanation">
+                    <h4>Metric Interpretation</h4>
+                    <div class="explanation-grid">
+                        <div class="explanation-item">
+                            <strong>Fee Variability (CV):</strong> Coefficient of variation measuring fee stability.
+                            <span class="threshold">Excellent: &lt;0.5, Good: 0.5-1.0, Poor: &gt;1.0</span>
+                        </div>
+                        <div class="explanation-item">
+                            <strong>Time Underfunded:</strong> Percentage of simulation time with vault balance below target.
+                            <span class="threshold">Excellent: &lt;5%, Good: 5-15%, Poor: &gt;15%</span>
+                        </div>
+                        <div class="explanation-item">
+                            <strong>L1 Tracking Error:</strong> Deviation between fees and actual L1 costs (normalized standard deviation).
+                            <span class="threshold">Excellent: &lt;0.3, Good: 0.3-0.6, Poor: &gt;0.6</span>
+                        </div>
+                        <div class="explanation-item">
+                            <strong>Average Fee:</strong> Mean transaction cost over simulation period. Lower values reduce user burden but must cover L1 operational costs.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Scripts -->
+    <script src="simulator.js"></script>
+    <script src="charts.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
