@@ -40,7 +40,7 @@
                 <div class="parameter-group">
                     <label for="mu-slider" class="parameter-label">
                         μ (L1 Weight): <span id="mu-value">0.4</span>
-                        <span class="tooltip" data-tooltip="Controls how much L1 costs influence fees. Higher values make fees track L1 basefee more closely.">ℹ️</span>
+                        <span class="tooltip" data-tooltip="Controls how much L1 costs influence L2 fees. L1 costs are calculated as: (trend L1 basefee × gas per L2 tx). Gas per tx = batch gas cost ÷ transactions per batch. Higher μ values make L2 fees track L1 conditions more closely.">ℹ️</span>
                     </label>
                     <input type="range" id="mu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.4">
                     <div class="range-labels">
@@ -53,12 +53,12 @@
                 <div class="parameter-group">
                     <label for="nu-slider" class="parameter-label">
                         ν (Deficit Weight): <span id="nu-value">0.3</span>
-                        <span class="tooltip" data-tooltip="Controls strength of vault deficit correction. Higher values = faster correction.">ℹ️</span>
+                        <span class="tooltip" data-tooltip="Controls strength of vault deficit correction. Higher values = faster correction. 0 = no deficit correction, 1 = maximum correction.">ℹ️</span>
                     </label>
-                    <input type="range" id="nu-slider" class="parameter-slider" min="0.1" max="0.9" step="0.05" value="0.3">
+                    <input type="range" id="nu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.3">
                     <div class="range-labels">
-                        <span>0.1</span>
-                        <span>0.9</span>
+                        <span>0.0</span>
+                        <span>1.0</span>
                     </div>
                 </div>
 
@@ -118,6 +118,19 @@
                     <div class="parameter-description">
                         Prevents asymptotic stalling near target balance
                     </div>
+
+                    <!-- Minimum Deficit Rate (visible only when guaranteed recovery is enabled) -->
+                    <div id="min-deficit-rate-group" class="sub-parameter-group" style="display: none; margin-top: 10px;">
+                        <label for="min-deficit-rate-slider" class="parameter-label">
+                            Min Deficit Rate: <span id="min-deficit-rate-value">0.001</span> ETH/step
+                            <span class="tooltip" data-tooltip="Minimum deficit correction rate per step when guaranteed recovery is active. Higher values = faster recovery.">ℹ️</span>
+                        </label>
+                        <input type="range" id="min-deficit-rate-slider" class="parameter-slider" min="-6" max="-2" step="0.2" value="-3">
+                        <div class="range-labels">
+                            <span>1e-6</span>
+                            <span>1e-2</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- L1 Data Source Tabs -->
@@ -138,6 +151,13 @@
                         <!-- Historical Tab -->
                         <div class="tab-pane active" id="historical-tab">
                             <div class="historical-periods-list">
+                                <label class="period-option">
+                                    <input type="radio" name="historical-period" value="may2023">
+                                    <div class="period-content">
+                                        <div class="period-title">May 2023 PEPE Crisis</div>
+                                        <div class="period-description">Memecoin mania extreme fees (60-184 gwei)</div>
+                                    </div>
+                                </label>
                                 <label class="period-option">
                                     <input type="radio" name="historical-period" value="may2022" checked>
                                     <div class="period-content">
@@ -186,16 +206,29 @@
                                 </div>
                             </div>
 
+                            <!-- Duration Control -->
+                            <div class="sub-parameter-group">
+                                <label for="duration-slider" class="parameter-label">
+                                    Simulation Duration: <span id="duration-value">3.0</span> hours
+                                    <span class="tooltip" data-tooltip="Length of simulation. 1h for quick tests, 6h for thorough analysis. Each step = 2 seconds (Taiko block time).">ℹ️</span>
+                                </label>
+                                <input type="range" id="duration-slider" class="parameter-slider" min="1" max="6" step="0.5" value="3">
+                                <div class="range-labels">
+                                    <span>1h</span>
+                                    <span>6h</span>
+                                </div>
+                            </div>
+
                             <!-- Spike Delay -->
                             <div class="sub-parameter-group">
                                 <label for="spike-delay-slider" class="parameter-label">
-                                    Spike Delay: <span id="spike-delay-value">60</span> steps
-                                    <span class="tooltip" data-tooltip="Delay before volatility spike starts. 60 steps = 10 minutes.">ℹ️</span>
+                                    Spike Delay: <span id="spike-delay-value">50</span>%
+                                    <span class="tooltip" data-tooltip="When the volatility spike starts as percentage of total simulation time. 50% = middle of simulation.">ℹ️</span>
                                 </label>
-                                <input type="range" id="spike-delay-slider" class="parameter-slider" min="0" max="120" step="6" value="60">
+                                <input type="range" id="spike-delay-slider" class="parameter-slider" min="0" max="90" step="5" value="50">
                                 <div class="range-labels">
-                                    <span>0</span>
-                                    <span>120</span>
+                                    <span>0%</span>
+                                    <span>90%</span>
                                 </div>
                             </div>
 
@@ -293,7 +326,7 @@
                     <div class="metric-card" id="avg-fee-card">
                         <div class="metric-label">Average Taiko Estimated Fee</div>
                         <div class="metric-value" id="avg-fee-value">-</div>
-                        <div class="metric-unit">ETH</div>
+                        <div class="metric-unit">gwei</div>
                         <div class="metric-status" id="avg-fee-status"></div>
                     </div>
                     <div class="metric-card" id="fee-cv-card">
@@ -321,6 +354,9 @@
                     <h4>Metric Interpretation</h4>
                     <div class="explanation-grid">
                         <div class="explanation-item">
+                            <strong>Average Taiko Estimated Fee:</strong> Mean transaction cost over simulation period. Lower values reduce user burden but must cover L1 operational costs.
+                        </div>
+                        <div class="explanation-item">
                             <strong>Taiko Estimated Fee Variability (CV):</strong> Coefficient of variation measuring fee stability.
                             <span class="threshold">Excellent: &lt;0.5, Good: 0.5-1.0, Poor: &gt;1.0</span>
                         </div>
@@ -332,9 +368,17 @@
                             <strong>L1 Tracking Error:</strong> Deviation between fees and actual L1 costs (normalized standard deviation).
                             <span class="threshold">Excellent: &lt;0.3, Good: 0.3-0.6, Poor: &gt;0.6</span>
                         </div>
-                        <div class="explanation-item">
-                            <strong>Average Taiko Estimated Fee:</strong> Mean transaction cost over simulation period. Lower values reduce user burden but must cover L1 operational costs.
-                        </div>
+                    </div>
+                </div>
+
+                <!-- L1 Price Estimation Accuracy Chart -->
+                <div class="l1-estimation-section">
+                    <h4>L1 Cost Estimation Analysis</h4>
+                    <div class="chart-container-single">
+                        <canvas id="l1-estimation-chart"></canvas>
+                    </div>
+                    <div class="estimation-explanation">
+                        <p><strong>Trend vs Spot L1 Basefee:</strong> Shows how the smoothed trend basefee (used for L2 fee calculation) compares to actual spot L1 basefee. The trend approach reduces fee volatility while maintaining cost coverage. When μ=0, this chart shows the underlying L1 dynamics without affecting L2 fees.</p>
                     </div>
                 </div>
             </div>

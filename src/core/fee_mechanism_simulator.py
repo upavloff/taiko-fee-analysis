@@ -38,7 +38,7 @@ class SimulationParams:
 
     # Simulation parameters
     total_steps: int = 10000      # Total simulation steps
-    time_step_seconds: int = 12   # Seconds per time step (L2 block time)
+    time_step_seconds: int = 2    # Seconds per time step (Taiko L2 block time)
 
     # Risk management
     fee_cap: Optional[float] = None  # Maximum fee per transaction

@@ -20,14 +20,14 @@ class ChartManager {
         }
 
         const timeLabels = data.map((_, i) => `${(i * 12 / 3600).toFixed(1)}h`);
-        const feeData = data.map(d => d.estimatedFee);
+        const feeData = data.map(d => d.estimatedFee * 1e9); // Convert ETH to gwei
 
         this.charts[canvasId] = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: timeLabels,
                 datasets: [{
-                    label: 'Taiko Estimated Fee (ETH)',
+                    label: 'Taiko Estimated Fee (gwei)',
                     data: feeData,
                     borderColor: this.colors.primary,
                     backgroundColor: this.colors.primary + '20',
@@ -68,7 +68,7 @@ class ChartManager {
                             },
                             label: function(context) {
                                 const value = context.raw;
-                                return `Taiko Estimated Fee: ${value.toExponential(3)} ETH`;
+                                return `Taiko Estimated Fee: ${value.toFixed(3)} gwei`;
                             }
                         }
                     }
@@ -92,7 +92,7 @@ class ChartManager {
                     y: {
                         title: {
                             display: true,
-                            text: 'Fee (ETH)',
+                            text: 'Fee (gwei)',
                             color: '#4a5568',
                             font: { size: 12 }
                         },
@@ -351,7 +351,7 @@ class ChartManager {
         // Create scatter plot data
         const scatterData = data.map(d => ({
             x: d.l1Basefee / 1e9, // gwei
-            y: d.estimatedFee
+            y: d.estimatedFee * 1e9 // Convert ETH to gwei
         }));
 
         this.charts[canvasId] = new Chart(ctx, {
@@ -401,7 +401,7 @@ class ChartManager {
                                 const point = context.raw;
                                 return [
                                     `L1 Basefee: ${point.x.toFixed(2)} gwei`,
-                                    `Taiko Estimated Fee: ${point.y.toExponential(3)} ETH`
+                                    `Taiko Estimated Fee: ${point.y.toFixed(3)} gwei`
                                 ];
                             }
                         }
@@ -426,7 +426,7 @@ class ChartManager {
                     y: {
                         title: {
                             display: true,
-                            text: 'Taiko Estimated Fee (ETH)',
+                            text: 'Taiko Estimated Fee (gwei)',
                             color: '#4a5568',
                             font: { size: 12 }
                         },
@@ -452,7 +452,9 @@ class ChartManager {
         // Format value based on metric type
         let formattedValue;
         if (cardId === 'avg-fee-card') {
-            formattedValue = value.toExponential(2);
+            // Convert ETH to gwei and format
+            const gweiValue = value * 1e9;
+            formattedValue = gweiValue.toFixed(3);
         } else if (cardId === 'fee-cv-card' || cardId === 'tracking-card') {
             formattedValue = value.toFixed(3);
         } else if (cardId === 'underfunded-card') {
@@ -530,6 +532,130 @@ class ChartManager {
         }
 
         return evaluations;
+    }
+
+    createL1EstimationChart(canvasId, data) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+
+        if (this.charts[canvasId]) {
+            this.charts[canvasId].destroy();
+        }
+
+        const timeLabels = data.map((_, i) => `${(i * 12 / 3600).toFixed(1)}h`);
+        const spotBasefeeData = data.map(d => d.l1Basefee / 1e9); // Convert wei to gwei
+        const trendBasefeeData = data.map(d => d.l1TrendBasefee / 1e9); // Convert wei to gwei
+
+        this.charts[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [
+                    {
+                        label: 'Spot L1 Basefee (gwei)',
+                        data: spotBasefeeData,
+                        borderColor: this.colors.danger,
+                        backgroundColor: this.colors.danger + '10',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: 'Trend L1 Basefee (gwei)',
+                        data: trendBasefeeData,
+                        borderColor: this.colors.primary,
+                        backgroundColor: this.colors.primary + '20',
+                        borderWidth: 2.5,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'L1 Basefee: Spot vs Trend Estimation',
+                        font: { size: 14, weight: 600 },
+                        color: '#2d3748',
+                        padding: { bottom: 20 }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            boxWidth: 12,
+                            font: { size: 11 },
+                            color: '#4a5568'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(26, 32, 44, 0.9)',
+                        titleColor: 'white',
+                        bodyColor: 'white',
+                        borderColor: '#4299e1',
+                        borderWidth: 1,
+                        cornerRadius: 6,
+                        displayColors: true,
+                        callbacks: {
+                            title: function(context) {
+                                return `Time: ${context[0].label}`;
+                            },
+                            label: function(context) {
+                                const value = context.raw;
+                                return `${context.dataset.label}: ${value.toFixed(2)} gwei`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time (hours)',
+                            color: '#4a5568',
+                            font: { size: 12 }
+                        },
+                        grid: {
+                            color: '#e2e8f0'
+                        },
+                        ticks: {
+                            color: '#718096',
+                            font: { size: 10 }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Basefee (gwei)',
+                            color: '#4a5568',
+                            font: { size: 12 }
+                        },
+                        grid: {
+                            color: '#e2e8f0'
+                        },
+                        ticks: {
+                            color: '#718096',
+                            font: { size: 10 },
+                            callback: function(value) {
+                                return value.toFixed(1);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        return this.charts[canvasId];
     }
 
     destroyAllCharts() {

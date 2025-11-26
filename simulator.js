@@ -9,9 +9,9 @@ class EIP1559BaseFeeSimulator {
         this.seed = seed;       // Random seed for reproducible results
         this.rng = this.seedableRandom(seed);
 
-        // EIP-1559 constants
-        this.TARGET_GAS = 15_000_000;  // 15M gas target per block
-        this.MAX_GAS = 30_000_000;     // 30M gas max per block
+        // EIP-1559 constants (updated 2024 values)
+        this.TARGET_GAS = 18_000_000;  // 18M gas target per block (current)
+        this.MAX_GAS = 36_000_000;     // 36M gas max per block (current)
         this.BASE_FEE_MAX_CHANGE = 1.125;  // Max 12.5% change per block
     }
 
@@ -73,6 +73,7 @@ class EIP1559BaseFeeSimulator {
 
 // Historical data cache
 const HISTORICAL_DATA = {
+    may2023: null,
     recent: null,
     may2022: null,
     june2022: null
@@ -80,10 +81,12 @@ const HISTORICAL_DATA = {
 
 // Data file mapping
 const DATA_FILES = {
+    may2023: 'data_cache/may_2023_pepe_crisis_data.csv',
     recent: 'data_cache/recent_low_fees_3hours.csv',
     may2022: 'data_cache/may_crash_basefee_data.csv',
     june2022: 'data_cache/real_july_2022_spike_data.csv'
     // Note: All periods are post-EIP-1559 with valid basefee data (EIP-1559 activated Aug 5, 2021)
+    // may2023 contains PEPE memecoin crisis data showing extreme volatility (60-184 gwei)
     // june2022 contains real July 1, 2022 data showing actual market volatility (7-88 gwei)
 };
 
@@ -99,10 +102,10 @@ class TaikoFeeSimulator {
 
         // Guaranteed recovery parameters
         this.guaranteedRecovery = params.guaranteedRecovery || false;
-        this.minDeficitRate = params.minDeficitRate || 1e-6; // Minimum 1 microETH correction rate
+        this.minDeficitRate = params.minDeficitRate || 1e-6; // Configurable minimum deficit correction rate
 
         // Debug constructor parameters
-        console.log(`TaikoFeeSimulator initialized with guaranteedRecovery=${this.guaranteedRecovery}, mu=${this.mu}, nu=${this.nu}, H=${this.H}`);
+        console.log(`TaikoFeeSimulator initialized with guaranteedRecovery=${this.guaranteedRecovery}, minDeficitRate=${this.minDeficitRate}, mu=${this.mu}, nu=${this.nu}, H=${this.H}`);
 
         // Vault initialization
         this.vaultBalance = this.getInitialVaultBalance(params.vaultInit);
@@ -116,12 +119,17 @@ class TaikoFeeSimulator {
 
         // L1 model parameters (for simulated mode)
         this.l1Model = new EIP1559BaseFeeSimulator(0.0, params.l1Volatility, 10e9, params.seed || 42);
-        this.spikeDelay = params.spikeDelay || 60;  // Delay spike by 60 steps (10 minutes)
+        this.spikeDelay = params.spikeDelaySteps || params.spikeDelay || 60;  // Use calculated steps or fallback
         this.spikeHeight = params.spikeHeight || 0.3;  // Spike intensity
 
         // Transaction parameters
         this.baseTxVolume = params.baseTxVolume || 10;  // Expected transaction volume per step
         this.batchGas = 200000;        // Gas cost for L1 batch submission
+
+        // L1 basefee trend tracking for cost estimation
+        this.l1BasefeeHistory = [];
+        this.trendWindow = 20;  // 20-step window for trend calculation
+        this.trendBasefee = null;  // Trend-based basefee estimate
 
         // Calculate gas per tx based on expected volume (economies of scale)
         this.updateGasPerTx();
@@ -148,9 +156,40 @@ class TaikoFeeSimulator {
         }
     }
 
+    updateL1BasefeeTrend(currentBasefeeWei) {
+        // Add current basefee to history
+        this.l1BasefeeHistory.push(currentBasefeeWei);
+
+        // Maintain window size
+        if (this.l1BasefeeHistory.length > this.trendWindow) {
+            this.l1BasefeeHistory.shift();
+        }
+
+        // Calculate trend-based estimate (exponentially weighted moving average)
+        if (this.l1BasefeeHistory.length >= 3) {
+            // Use EWMA with alpha = 0.15 for smoothing
+            const alpha = 0.15;
+            if (this.trendBasefee === null) {
+                // Initialize with simple average of first few points
+                this.trendBasefee = this.l1BasefeeHistory.reduce((a, b) => a + b, 0) / this.l1BasefeeHistory.length;
+            } else {
+                this.trendBasefee = alpha * currentBasefeeWei + (1 - alpha) * this.trendBasefee;
+            }
+        } else {
+            // Not enough history, use spot price
+            this.trendBasefee = currentBasefeeWei;
+        }
+    }
+
     calculateL1Cost(l1BasefeeWei) {
-        // Calculate L1 cost per transaction in ETH
-        return (l1BasefeeWei * this.gasPerTx) / 1e18;
+        // Update trend tracking
+        this.updateL1BasefeeTrend(l1BasefeeWei);
+
+        // Use trend basefee for cost estimation instead of spot price
+        const basefeeForCost = this.trendBasefee || l1BasefeeWei;
+
+        // Calculate L1 cost per L2 transaction based on amortized batch costs
+        return (basefeeForCost * this.gasPerTx) / 1e18;
     }
 
     calculateFee(l1BasefeeWei, vaultDeficit) {
@@ -164,11 +203,12 @@ class TaikoFeeSimulator {
             // Ensure minimum deficit correction rate to prevent asymptotic stalling
             const standardCorrection = this.nu * (vaultDeficit / this.H);
             const minimumCorrection = this.minDeficitRate;
+            const wasStandardUsed = standardCorrection >= minimumCorrection;
             deficitComponent = Math.max(standardCorrection, minimumCorrection);
 
-            // Debug logging (remove in production)
-            if (Math.random() < 0.01) { // Log 1% of the time to avoid spam
-                console.log(`Guaranteed Recovery Active: deficit=${vaultDeficit.toFixed(6)}, standard=${standardCorrection.toExponential(3)}, minimum=${minimumCorrection.toExponential(3)}, used=${deficitComponent.toExponential(3)}`);
+            // Debug logging (log 2% of the time to monitor effectiveness)
+            if (Math.random() < 0.02) {
+                console.log(`Guaranteed Recovery: deficit=${vaultDeficit.toFixed(6)}, standard=${standardCorrection.toExponential(3)}, minimum=${minimumCorrection.toExponential(3)}, used=${deficitComponent.toExponential(3)}, source=${wasStandardUsed ? 'standard' : 'minimum'}`);
             }
         }
 
@@ -284,10 +324,11 @@ class TaikoFeeSimulator {
             // Update vault balance
             this.vaultBalance += feesCollected - actualL1Cost;
 
-            // Store results
+            // Store results (include both spot and trend basefee for analysis)
             results.push({
                 timeStep: t,
-                l1Basefee: l1Basefee,
+                l1Basefee: l1Basefee,  // Spot basefee
+                l1TrendBasefee: this.trendBasefee || l1Basefee,  // Trend basefee used for cost calculation
                 vaultBalance: this.vaultBalance,
                 vaultDeficit: vaultDeficit,
                 estimatedFee: estimatedFee,

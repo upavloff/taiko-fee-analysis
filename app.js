@@ -11,6 +11,9 @@ class TaikoFeeExplorer {
         this.initializeEventListeners();
         this.updateParameterDisplays();
 
+        // Initialize minimum deficit rate visibility based on guaranteed recovery checkbox
+        this.toggleMinDeficitRateVisibility(document.getElementById('guaranteed-recovery').checked);
+
         // Auto-run simulation on page load
         setTimeout(() => {
             this.runSimulation();
@@ -55,6 +58,12 @@ class TaikoFeeExplorer {
             this.markParametersModified();
         });
 
+        document.getElementById('duration-slider').addEventListener('input', (e) => {
+            document.getElementById('duration-value').textContent = parseFloat(e.target.value).toFixed(1);
+            this.clearActivePreset();
+            this.markParametersModified();
+        });
+
         document.getElementById('tx-per-block-slider').addEventListener('input', (e) => {
             document.getElementById('tx-per-block-value').textContent = e.target.value;
             this.clearActivePreset();
@@ -68,7 +77,17 @@ class TaikoFeeExplorer {
         });
 
         // Guaranteed recovery toggle
-        document.getElementById('guaranteed-recovery').addEventListener('change', () => {
+        document.getElementById('guaranteed-recovery').addEventListener('change', (e) => {
+            this.toggleMinDeficitRateVisibility(e.target.checked);
+            this.clearActivePreset();
+            this.markParametersModified();
+        });
+
+        // Minimum deficit rate slider
+        document.getElementById('min-deficit-rate-slider').addEventListener('input', (e) => {
+            const exponentValue = parseFloat(e.target.value);
+            const actualValue = Math.pow(10, exponentValue);
+            document.getElementById('min-deficit-rate-value').textContent = actualValue.toExponential(3);
             this.clearActivePreset();
             this.markParametersModified();
         });
@@ -197,6 +216,17 @@ class TaikoFeeExplorer {
         document.getElementById('H-value').textContent = document.getElementById('H-slider').value;
         document.getElementById('volatility-value').textContent = document.getElementById('volatility-slider').value;
         document.getElementById('tx-per-block-value').textContent = document.getElementById('tx-per-block-slider').value;
+        document.getElementById('duration-value').textContent = parseFloat(document.getElementById('duration-slider').value).toFixed(1);
+
+        // Update minimum deficit rate display
+        const exponentValue = parseFloat(document.getElementById('min-deficit-rate-slider').value);
+        const actualValue = Math.pow(10, exponentValue);
+        document.getElementById('min-deficit-rate-value').textContent = actualValue.toExponential(3);
+    }
+
+    toggleMinDeficitRateVisibility(show) {
+        const deficitRateGroup = document.getElementById('min-deficit-rate-group');
+        deficitRateGroup.style.display = show ? 'block' : 'none';
     }
 
     getCurrentParameters() {
@@ -204,6 +234,10 @@ class TaikoFeeExplorer {
         const activeTab = document.querySelector('.tab-button.active').dataset.tab;
         const isSimulated = activeTab === 'simulated';
         const historicalPeriod = isSimulated ? null : document.querySelector('input[name="historical-period"]:checked').value;
+
+        // Calculate minimum deficit rate from the exponential slider
+        const minDeficitRateExponent = parseFloat(document.getElementById('min-deficit-rate-slider').value);
+        const minDeficitRateValue = Math.pow(10, minDeficitRateExponent);
 
         const params = {
             mu: parseFloat(document.getElementById('mu-slider').value),
@@ -218,6 +252,8 @@ class TaikoFeeExplorer {
             spikeDelay: parseInt(document.getElementById('spike-delay-slider').value),
             spikeHeight: parseFloat(document.getElementById('spike-height-slider').value),
             guaranteedRecovery: document.getElementById('guaranteed-recovery').checked,
+            minDeficitRate: minDeficitRateValue,
+            durationHours: parseFloat(document.getElementById('duration-slider').value),
             targetBalance: 100,
             feeElasticity: 0.2,
             minFee: 1e-8
@@ -287,9 +323,15 @@ class TaikoFeeExplorer {
             // Create simulator
             const simulator = new TaikoFeeSimulator(params);
 
+            // Calculate steps from duration (1800 steps per hour for 2-second Taiko blocks)
+            const simulationSteps = Math.round(params.durationHours * 1800);
+
+            // Convert percentage-based spike delay to actual steps
+            params.spikeDelaySteps = Math.round((params.spikeDelay / 100) * simulationSteps);
+
             // Run simulation (use setTimeout to make it non-blocking)
             await new Promise(resolve => setTimeout(resolve, 100));
-            const simulationData = await simulator.runSimulation(300);
+            const simulationData = await simulator.runSimulation(simulationSteps);
 
             console.log('Simulation completed, data points:', simulationData.length);
 
@@ -333,6 +375,7 @@ class TaikoFeeExplorer {
         this.chartManager.createVaultChart('vault-chart', simulationData, params.targetBalance);
         this.chartManager.createL1Chart('l1-chart', simulationData);
         this.chartManager.createCorrelationChart('correlation-chart', simulationData);
+        this.chartManager.createL1EstimationChart('l1-estimation-chart', simulationData);
     }
 
     showLoading(show) {

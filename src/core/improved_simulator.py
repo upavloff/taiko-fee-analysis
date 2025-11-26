@@ -95,16 +95,36 @@ class ImprovedTaikoFeeSimulator(TaikoFeeSimulator):
         self.reset_state()
 
     def estimate_l1_cost_per_tx(self, l1_basefee: float) -> float:
-        """Enhanced L1 cost estimation with outlier rejection."""
+        """Enhanced L1 cost estimation using trend basefee with outlier rejection."""
 
-        # Calculate raw cost
+        # Track L1 basefee history for trend calculation
+        self.l1_basefee_history.append(l1_basefee)
+
+        # Keep only recent history for trend calculation
+        trend_window = 20
+        if len(self.l1_basefee_history) > trend_window:
+            self.l1_basefee_history = self.l1_basefee_history[-trend_window:]
+
+        # Calculate trend basefee (EWMA)
+        if len(self.l1_basefee_history) >= 3:
+            if not hasattr(self, 'trend_basefee') or self.trend_basefee is None:
+                # Initialize with mean of first few points
+                self.trend_basefee = np.mean(self.l1_basefee_history)
+            else:
+                # Update EWMA trend with alpha = 0.15
+                alpha_trend = 0.15
+                self.trend_basefee = alpha_trend * l1_basefee + (1 - alpha_trend) * self.trend_basefee
+        else:
+            self.trend_basefee = l1_basefee
+
+        # Use trend basefee for cost calculation instead of spot price
         gas_cost_per_tx = self.params.gas_per_batch / self.params.txs_per_batch
-        raw_cost = l1_basefee * gas_cost_per_tx / 1e18
+        raw_cost = self.trend_basefee * gas_cost_per_tx / 1e18
 
-        # Add to history
+        # Add to cost history for outlier rejection
         self.l1_cost_history.append(raw_cost)
 
-        # Keep only recent history
+        # Keep only recent cost history
         window = self.improved_params.l1_cost_estimation_window
         if len(self.l1_cost_history) > window:
             self.l1_cost_history = self.l1_cost_history[-window:]
@@ -165,6 +185,8 @@ class ImprovedTaikoFeeSimulator(TaikoFeeSimulator):
             self.improved_params.target_balance
         )
         self.l1_cost_history = []
+        self.l1_basefee_history = []  # For trend tracking
+        self.trend_basefee = None
         self.previous_estimated_fee = None
 
 
