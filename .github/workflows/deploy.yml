@@ -31,12 +31,17 @@ jobs:
       - name: Create web directory with only needed files
         run: |
           mkdir -p web_deploy
-          cp index.html web_deploy/
-          cp *.js web_deploy/
-          cp *.css web_deploy/
-          cp CNAME web_deploy/
+          cp index.html web_deploy/ 2>/dev/null || echo "index.html not found"
+          cp *.js web_deploy/ 2>/dev/null || echo "No JS files found"
+          cp *.css web_deploy/ 2>/dev/null || echo "No CSS files found"
+          cp CNAME web_deploy/ 2>/dev/null || echo "CNAME not found"
           mkdir -p web_deploy/data_cache
-          cp data/data_cache/*.csv web_deploy/data_cache/
+          if [ -d "data/data_cache" ] && [ -n "$(ls data/data_cache/*.csv 2>/dev/null)" ]; then
+            cp data/data_cache/*.csv web_deploy/data_cache/
+          else
+            echo "No CSV files found in data/data_cache/, creating empty directory"
+          fi
+          ls -la web_deploy/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
