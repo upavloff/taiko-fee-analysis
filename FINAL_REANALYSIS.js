@@ -196,14 +196,13 @@ async function finalAnalysis() {
         { name: 'L1-Heavy Hybrid', mu: 0.8, nu: 0.2, H: 144 }
     ];
 
-    const calculator = new MetricsCalculator(baseParams.targetBalance);
-
     console.log('🔥 FINAL ANALYSIS RESULTS (with CORRECT gas calculation):\n');
 
     for (const config of configurations) {
         const params = { ...baseParams, ...config };
         const simulator = new TaikoFeeSimulator(params);
         const results = await simulator.runSimulation(1800); // 1 hour
+        const calculator = new MetricsCalculator(baseParams.targetBalance, simulator.gasPerTx);
         const metrics = calculator.calculateMetrics(results);
 
         console.log(`📈 ${config.name} (μ=${config.mu}, ν=${config.nu}, H=${config.H}):`);

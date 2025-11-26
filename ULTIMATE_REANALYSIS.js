@@ -183,8 +183,6 @@ async function ultimateAnalysis() {
         { name: '🛡️ Conservative Deficit', mu: 0.2, nu: 0.7, H: 144 }
     ];
 
-    const calculator = new MetricsCalculator(baseParams.targetBalance);
-
     console.log('🎯 ULTIMATE ANALYSIS RESULTS (ALL BUGS FIXED):\n');
 
     const results = [];
@@ -192,6 +190,7 @@ async function ultimateAnalysis() {
         const params = { ...baseParams, ...config };
         const simulator = new TaikoFeeSimulator(params);
         const simResults = await simulator.runSimulation(1800); // 1 hour
+        const calculator = new MetricsCalculator(baseParams.targetBalance, simulator.gasPerTx);
         const metrics = calculator.calculateMetrics(simResults);
 
         const result = {

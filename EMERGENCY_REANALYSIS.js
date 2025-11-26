@@ -262,7 +262,7 @@ async function emergencyAnalysis() {
     const simulator = new TaikoFeeSimulator(testParams);
     const results = await simulator.runSimulation(1800); // 1 hour
 
-    const calculator = new MetricsCalculator(testParams.targetBalance);
+    const calculator = new MetricsCalculator(testParams.targetBalance, simulator.gasPerTx);
     const metrics = calculator.calculateMetrics(results);
 
     console.log('\n🎯 EMERGENCY TEST RESULTS (μ=1, ν=0 with BUG FIX):');
