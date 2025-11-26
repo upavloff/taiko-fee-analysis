@@ -24,7 +24,7 @@ try {
         H: 144,
         l1Volatility: 0.3,
         vaultInit: 'target',
-        targetBalance: 1000
+        targetBalance: 100
     };
 
     const simulator = new TaikoFeeSimulator(params);
@@ -39,7 +39,7 @@ try {
 
     // Test 4: MetricsCalculator
     console.log('\nTest 4: MetricsCalculator');
-    const metricsCalc = new MetricsCalculator(1000);
+    const metricsCalc = new MetricsCalculator(100);
     const metrics = metricsCalc.calculateMetrics(results);
     console.log('✅ Metrics calculated:');
     console.log('   Average Fee:', metrics.avgFee.toExponential(2), 'ETH');

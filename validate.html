@@ -78,12 +78,12 @@
                 const params = {
                     mu: 0.4, nu: 0.3, H: 144,
                     l1Volatility: 0.3, vaultInit: 'target',
-                    targetBalance: 1000
+                    targetBalance: 100
                 };
 
                 const simulator = new TaikoFeeSimulator(params);
                 const simulatorWorks = simulator.mu === 0.4 &&
-                                     simulator.vaultBalance === 1000 &&
+                                     simulator.vaultBalance === 100 &&
                                      typeof simulator.runSimulation === 'function';
 
                 addTest('Simulator Creation', simulatorWorks,
@@ -108,7 +108,7 @@
                 );
 
                 // Test 6: Metrics calculation
-                const metricsCalc = new MetricsCalculator(1000);
+                const metricsCalc = new MetricsCalculator(100);
                 const metrics = metricsCalc.calculateMetrics(results);
                 const metricsWork = typeof metrics.avgFee === 'number' &&
                                   typeof metrics.feeCV === 'number' &&

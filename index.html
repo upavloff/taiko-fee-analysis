@@ -102,6 +102,24 @@
                     </select>
                 </div>
 
+                <!-- Guaranteed Recovery Toggle -->
+                <div class="parameter-group">
+                    <label class="parameter-label">
+                        Deficit Recovery Mode
+                        <span class="tooltip" data-tooltip="Standard: Uses asymptotic correction (ν×D/H). Guaranteed: Adds minimum rate to ensure complete recovery to target balance.">ℹ️</span>
+                    </label>
+                    <div class="toggle-container">
+                        <input type="checkbox" id="guaranteed-recovery" class="toggle-checkbox">
+                        <label for="guaranteed-recovery" class="toggle-switch">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">Guaranteed Recovery</span>
+                    </div>
+                    <div class="parameter-description">
+                        Prevents asymptotic stalling near target balance
+                    </div>
+                </div>
+
                 <!-- L1 Data Source Tabs -->
                 <div class="parameter-group">
                     <label class="parameter-label">
@@ -130,8 +148,8 @@
                                 <label class="period-option">
                                     <input type="radio" name="historical-period" value="june2022">
                                     <div class="period-content">
-                                        <div class="period-title">June 2022 High Volatility</div>
-                                        <div class="period-description">NFT/DeFi spikes (8-21,845 gwei)</div>
+                                        <div class="period-title">July 2022 Real Market Volatility</div>
+                                        <div class="period-description">Actual Ethereum data (7-88 gwei)</div>
                                     </div>
                                 </label>
                                 <label class="period-option">

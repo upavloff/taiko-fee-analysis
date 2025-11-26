@@ -82,8 +82,9 @@ const HISTORICAL_DATA = {
 const DATA_FILES = {
     recent: 'data_cache/recent_low_fees_3hours.csv',
     may2022: 'data_cache/may_crash_basefee_data.csv',
-    june2022: 'data_cache/high_volatility_basefee_data.csv'
+    june2022: 'data_cache/real_july_2022_spike_data.csv'
     // Note: All periods are post-EIP-1559 with valid basefee data (EIP-1559 activated Aug 5, 2021)
+    // june2022 contains real July 1, 2022 data showing actual market volatility (7-88 gwei)
 };
 
 class TaikoFeeSimulator {
@@ -92,9 +93,16 @@ class TaikoFeeSimulator {
         this.mu = params.mu;                    // L1 cost weight
         this.nu = params.nu;                    // Deficit weight
         this.H = params.H;                      // Time horizon
-        this.targetBalance = params.targetBalance || 1000;
+        this.targetBalance = params.targetBalance || 100;
         this.feeElasticity = params.feeElasticity || 0.2;
         this.minFee = params.minFee || 1e-8;
+
+        // Guaranteed recovery parameters
+        this.guaranteedRecovery = params.guaranteedRecovery || false;
+        this.minDeficitRate = params.minDeficitRate || 1e-6; // Minimum 1 microETH correction rate
+
+        // Debug constructor parameters
+        console.log(`TaikoFeeSimulator initialized with guaranteedRecovery=${this.guaranteedRecovery}, mu=${this.mu}, nu=${this.nu}, H=${this.H}`);
 
         // Vault initialization
         this.vaultBalance = this.getInitialVaultBalance(params.vaultInit);
@@ -148,7 +156,21 @@ class TaikoFeeSimulator {
     calculateFee(l1BasefeeWei, vaultDeficit) {
         const l1Cost = this.calculateL1Cost(l1BasefeeWei);
         const l1Component = this.mu * l1Cost;
-        const deficitComponent = this.nu * (vaultDeficit / this.H);
+
+        let deficitComponent = this.nu * (vaultDeficit / this.H);
+
+        // Apply guaranteed recovery logic if enabled
+        if (this.guaranteedRecovery && vaultDeficit > 0) {
+            // Ensure minimum deficit correction rate to prevent asymptotic stalling
+            const standardCorrection = this.nu * (vaultDeficit / this.H);
+            const minimumCorrection = this.minDeficitRate;
+            deficitComponent = Math.max(standardCorrection, minimumCorrection);
+
+            // Debug logging (remove in production)
+            if (Math.random() < 0.01) { // Log 1% of the time to avoid spam
+                console.log(`Guaranteed Recovery Active: deficit=${vaultDeficit.toFixed(6)}, standard=${standardCorrection.toExponential(3)}, minimum=${minimumCorrection.toExponential(3)}, used=${deficitComponent.toExponential(3)}`);
+            }
+        }
 
         return Math.max(l1Component + deficitComponent, this.minFee);
     }
@@ -178,6 +200,7 @@ class TaikoFeeSimulator {
         }
 
         try {
+            console.log(`Loading historical data for period: ${period}, file: ${DATA_FILES[period]}`);
             const response = await fetch(DATA_FILES[period]);
             if (!response.ok) {
                 throw new Error(`Failed to load ${period} data: ${response.statusText}`);
@@ -200,6 +223,8 @@ class TaikoFeeSimulator {
             HISTORICAL_DATA[period] = data;
             this.historicalData = data;
             this.historicalIndex = 0;
+
+            console.log(`Successfully loaded ${data.length} data points for ${period}. Basefee range: ${data[0]?.basefee_gwei?.toFixed(3)} - ${data[data.length-1]?.basefee_gwei?.toFixed(3)} gwei`);
 
         } catch (error) {
             console.error('Failed to load historical data:', error);

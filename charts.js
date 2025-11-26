@@ -116,7 +116,7 @@ class ChartManager {
         });
     }
 
-    createVaultChart(canvasId, data, targetBalance = 1000) {
+    createVaultChart(canvasId, data, targetBalance = 100) {
         const ctx = document.getElementById(canvasId).getContext('2d');
 
         if (this.charts[canvasId]) {

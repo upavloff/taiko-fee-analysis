@@ -24,7 +24,7 @@
                 H: 144,
                 l1Volatility: 0.3,
                 vaultInit: 'target',
-                targetBalance: 1000
+                targetBalance: 100
             };
 
             const simulator = new TaikoFeeSimulator(params);
@@ -35,7 +35,7 @@
             console.log('✅ Simulation completed, data points:', results.length);
 
             // Test MetricsCalculator
-            const metricsCalc = new MetricsCalculator(1000);
+            const metricsCalc = new MetricsCalculator(100);
             const metrics = metricsCalc.calculateMetrics(results);
             console.log('✅ Metrics calculated:', metrics);
 

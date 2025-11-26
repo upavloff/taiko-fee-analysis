@@ -67,6 +67,12 @@ class TaikoFeeExplorer {
             this.markParametersModified();
         });
 
+        // Guaranteed recovery toggle
+        document.getElementById('guaranteed-recovery').addEventListener('change', () => {
+            this.clearActivePreset();
+            this.markParametersModified();
+        });
+
         // Tab buttons
         document.querySelectorAll('.tab-button').forEach(button => {
             button.addEventListener('click', (e) => {
@@ -199,7 +205,7 @@ class TaikoFeeExplorer {
         const isSimulated = activeTab === 'simulated';
         const historicalPeriod = isSimulated ? null : document.querySelector('input[name="historical-period"]:checked').value;
 
-        return {
+        const params = {
             mu: parseFloat(document.getElementById('mu-slider').value),
             nu: parseFloat(document.getElementById('nu-slider').value),
             H: parseInt(document.getElementById('H-slider').value),
@@ -211,10 +217,14 @@ class TaikoFeeExplorer {
             baseTxVolume: parseInt(document.getElementById('tx-per-block-slider').value),
             spikeDelay: parseInt(document.getElementById('spike-delay-slider').value),
             spikeHeight: parseFloat(document.getElementById('spike-height-slider').value),
-            targetBalance: 1000,
+            guaranteedRecovery: document.getElementById('guaranteed-recovery').checked,
+            targetBalance: 100,
             feeElasticity: 0.2,
             minFee: 1e-8
         };
+
+        console.log(`App parameters:`, params);
+        return params;
     }
 
     loadPreset(presetName) {

@@ -81,9 +81,9 @@ taiko-fee-analysis/
 │       └── updated_taiko_analysis.ipynb
 ├── data/                        # Historical L1 data
 │   └── data_cache/             # Cached basefee datasets
-│       ├── basefee_*.csv       # Historical Ethereum data
-│       ├── may_crash_basefee_data.csv
-│       └── high_volatility_basefee_data.csv
+│       ├── recent_low_fees_3hours.csv       # Nov 2025 low fee period (0.055-0.092 gwei)
+│       ├── may_crash_basefee_data.csv       # May 2022 UST/Luna crash (53-533 gwei)
+│       └── real_july_2022_spike_data.csv    # July 2022 market volatility (7-88 gwei)
 ├── docs/                        # Documentation
 │   └── README.md               # Research findings & methodology
 ├── tests/                       # Test suite (future)
@@ -109,9 +109,9 @@ taiko-fee-analysis/
 ## 📈 Analysis Capabilities
 
 ### Historical Data Analysis
-- **May 2022 Crypto Crash**: UST/Luna collapse period (53-533 gwei)
-- **June 2022 High Volatility**: NFT/DeFi activity spikes (8-21,845 gwei)
-- **Recent Low Fee Period**: Current market conditions (0.055-0.092 gwei)
+- **May 2022 Crypto Crash**: Real UST/Luna collapse data (53-533 gwei)
+- **July 2022 Market Volatility**: Real Ethereum network spikes (7-88 gwei)
+- **Recent Low Fee Period**: Nov 2025 market conditions (0.055-0.092 gwei)
 
 ### Simulation Scenarios
 - **Geometric Brownian Motion** for realistic L1 basefee modeling
@@ -152,7 +152,7 @@ from src.core import ImprovedTaikoFeeSimulator, ImprovedSimulationParams, Geomet
 # Create parameters with proper vault initialization
 params = ImprovedSimulationParams(
     mu=0.5, nu=0.3, H=144,
-    target_balance=1000,
+    target_balance=100,
     vault_initialization_mode="target",
     total_steps=500
 )
@@ -180,7 +180,7 @@ df = integrator.get_real_basefee_data(
 ```python
 from src.analysis import MetricsCalculator
 
-calc = MetricsCalculator(target_balance=1000)
+calc = MetricsCalculator(target_balance=100)
 metrics = calc.calculate_all_metrics(results)
 
 print(f"Average fee: {metrics.avg_fee:.2e} ETH")
