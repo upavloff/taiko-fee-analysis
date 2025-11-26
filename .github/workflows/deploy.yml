@@ -35,7 +35,8 @@ jobs:
           cp *.js web_deploy/
           cp *.css web_deploy/
           cp CNAME web_deploy/
-          cp -r data_cache web_deploy/
+          mkdir -p web_deploy/data_cache
+          cp data/data_cache/*.csv web_deploy/data_cache/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
