@@ -347,7 +347,7 @@ class TaikoFeeExplorer {
             console.log('Simulation completed, data points:', simulationData.length);
 
             // Calculate metrics
-            const metricsCalculator = new MetricsCalculator(params.targetBalance);
+            const metricsCalculator = new MetricsCalculator(params.targetBalance, simulator.gasPerTx);
             const metrics = metricsCalculator.calculateMetrics(simulationData);
 
             console.log('Calculated metrics:', metrics);

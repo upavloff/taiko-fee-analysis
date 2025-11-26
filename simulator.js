@@ -47,8 +47,8 @@ class EIP1559BaseFeeSimulator {
         newBaseFee = Math.min(newBaseFee, maxIncrease);
         newBaseFee = Math.max(newBaseFee, maxDecrease);
 
-        // Allow natural basefee dynamics (removed artificial 1 gwei floor)
-        this.currentBaseFee = newBaseFee;
+        // Ensure minimum basefee of 1 gwei (matches Python implementation)
+        this.currentBaseFee = Math.max(newBaseFee, 1e9);
 
         return this.currentBaseFee;
     }
@@ -138,12 +138,12 @@ class TaikoFeeSimulator {
     }
 
     updateGasPerTx() {
-        // CORRECTED: Align with Python implementation
-        // gas_cost_per_tx = gas_per_batch / txs_per_batch
-        // This matches src/core/fee_mechanism_simulator.py:272
-        this.gasPerTx = this.batchGas / this.txsPerBatch;
+        // Match README.md formula: max(200,000 / Expected Tx Volume, 2,000)
+        // This implements economies of scale with a 2,000 gas minimum for overhead
+        const baseGasPerTx = this.batchGas / this.txsPerBatch;
+        this.gasPerTx = Math.max(baseGasPerTx, 2000);
 
-        console.log(`ALIGNED gasPerTx = ${this.batchGas} / ${this.txsPerBatch} = ${this.gasPerTx} gas (matches Python)`);
+        console.log(`gasPerTx = max(${this.batchGas} / ${this.txsPerBatch}, 2000) = max(${baseGasPerTx}, 2000) = ${this.gasPerTx} gas`);
         console.log(`L1 cost per tx = basefee * ${this.gasPerTx} / 1e18`);
     }
 
@@ -349,8 +349,9 @@ class TaikoFeeSimulator {
 }
 
 class MetricsCalculator {
-    constructor(targetBalance) {
+    constructor(targetBalance, gasPerTx) {
         this.targetBalance = targetBalance;
+        this.gasPerTx = gasPerTx;
     }
 
     calculateMetrics(simulationData) {
@@ -412,33 +413,40 @@ class MetricsCalculator {
 // SCIENTIFICALLY CORRECTED Preset configurations - Based on proper gas calculation
 // CRITICAL: Previous presets were based on 100x underestimated L1 costs (200 gas vs 20,000 gas)
 const PRESETS = {
+    'optimal': {
+        mu: 0.0,
+        nu: 0.9,
+        H: 72,
+        description: '🎯 OPTIMAL: Best balance of low fees + vault stability',
+        useCase: 'Research-proven optimal configuration. Pure deficit correction (μ=0.0) with strong vault management (ν=0.9). Minimizes fees while maintaining protocol stability.'
+    },
     'cheapest-fees': {
         mu: 0.1,
         nu: 0.0,
         H: 24,
-        description: '💰 CHEAPEST: Absolute minimum L2 fees',
-        useCase: 'Minimizes L2 fees to ~16.4 gwei average. Minimal L1 tracking (0.1×) with no deficit correction. Optimized with corrected gas calculation (2000 gas/tx).'
+        description: '💰 CHEAPEST: Absolute minimum L2 fees (⚠️ No vault management)',
+        useCase: 'WARNING: ~16.4 gwei fees but NO deficit correction (ν=0.0). Vault can become severely underfunded. For research/testing only.'
     },
-    'balanced-cheap': {
+    'balanced': {
         mu: 0.1,
-        nu: 0.1,
+        nu: 0.3,
         H: 72,
-        description: '⚖️ BALANCED-CHEAP: Low fees with light vault management',
-        useCase: 'Very low fees (~18.8 gwei) with minimal vault deficit correction. Good compromise between cost and protocol stability.'
+        description: '⚖️ BALANCED: Low fees with vault safety',
+        useCase: 'Compromise between fee minimization and vault stability. Light L1 tracking + moderate deficit correction. Good for cautious deployments.'
     },
-    'vault-stable': {
+    'conservative': {
         mu: 0.0,
         nu: 0.7,
         H: 72,
-        description: '🛡️ VAULT-STABLE: Deficit correction focused',
-        useCase: 'Prioritizes vault stability over minimal fees. Pure deficit correction with moderate recovery rate. Safer for protocol deployment.'
+        description: '🛡️ CONSERVATIVE: Vault stability priority',
+        useCase: 'Pure deficit correction with moderate recovery rate. Prioritizes protocol stability over minimal fees. Recommended for production deployment.'
     },
     'crisis-resilient': {
         mu: 0.0,
         nu: 0.9,
         H: 144,
         description: '⛑️ CRISIS-RESILIENT: Maximum stability',
-        useCase: 'Strongest vault management for extreme volatility. Extended horizon for crisis scenarios. Higher fees but maximum protocol stability.'
+        useCase: 'Strongest vault management for extreme volatility. Extended horizon for crisis scenarios. Higher fees but maximum protocol robustness.'
     }
 };
 
