@@ -18,7 +18,7 @@ body {
 .app-container {
     display: flex;
     min-height: 100vh;
-    width: 100vw;
+    max-width: 100vw;
 }
 
 /* Left Sidebar */
@@ -47,7 +47,7 @@ body {
 
 /* Preset Buttons */
 .preset-section {
-    padding: 16px 20px;
+    padding: 16px 20px 12px 20px;
     border-bottom: 1px solid #e2e8f0;
 }
 
@@ -92,9 +92,8 @@ body {
 
 /* Parameters Section */
 .parameters-section {
-    padding: 16px 20px;
+    padding: 12px 20px 16px 20px;
     border-bottom: 1px solid #e2e8f0;
-    flex-grow: 1;
 }
 
 .parameters-section h3 {
@@ -107,7 +106,7 @@ body {
 }
 
 .parameter-group {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .parameter-label {
@@ -200,6 +199,128 @@ body {
     font-size: 10px;
     color: #718096;
 }
+
+/* Tab Interface */
+.tab-navigation {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.tab-button {
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: #718096;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.tab-button:hover {
+    color: #4299e1;
+    background: #f7fafc;
+}
+
+.tab-button.active {
+    color: #2d3748;
+    background: white;
+    border-bottom: 2px solid #4299e1;
+    font-weight: 600;
+}
+
+.tab-content {
+    margin-top: 12px;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+.sub-parameter-group {
+    margin-bottom: 16px;
+}
+
+.sub-parameter-group .parameter-label {
+    font-size: 11px;
+    margin-bottom: 6px;
+}
+
+.radio-option small {
+    display: block;
+    font-size: 10px;
+    color: #a0aec0;
+    margin-top: 2px;
+    margin-left: 18px;
+}
+
+/* Historical Periods List */
+.historical-periods-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.period-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+}
+
+.period-option:hover {
+    border-color: #cbd5e0;
+    background: #f7fafc;
+}
+
+.period-option input[type="radio"]:checked + .period-content {
+    color: #2d3748;
+}
+
+.period-option input[type="radio"]:checked + .period-content .period-title {
+    font-weight: 600;
+    color: #4299e1;
+}
+
+.period-option:has(input[type="radio"]:checked) {
+    border-color: #4299e1;
+    background: #ebf8ff;
+}
+
+.period-content {
+    flex: 1;
+}
+
+.period-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: #2d3748;
+    margin-bottom: 2px;
+}
+
+.period-description {
+    font-size: 10px;
+    color: #718096;
+}
+
+.period-option input[type="radio"] {
+    margin: 2px 0 0 0;
+    flex-shrink: 0;
+}
+
 
 /* Tooltip */
 .tooltip {
@@ -476,6 +597,8 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    overflow-x: hidden;
 }
 
 /* Metrics Section */

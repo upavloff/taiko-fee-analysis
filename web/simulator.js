@@ -1,27 +1,56 @@
 // Taiko Fee Mechanism Simulator - JavaScript Implementation
 // Ported from Python analysis for web interface
 
-class GeometricBrownianMotion {
+class EIP1559BaseFeeSimulator {
     constructor(mu, sigma, initialValue = 10e9, seed = 42) {
         this.mu = mu;           // Drift (trend)
         this.sigma = sigma;     // Volatility
-        this.currentValue = initialValue;  // Current basefee in wei
+        this.currentBaseFee = initialValue;  // Current basefee in wei
         this.seed = seed;       // Random seed for reproducible results
         this.rng = this.seedableRandom(seed);
+
+        // EIP-1559 constants
+        this.TARGET_GAS = 15_000_000;  // 15M gas target per block
+        this.MAX_GAS = 30_000_000;     // 30M gas max per block
+        this.BASE_FEE_MAX_CHANGE = 1.125;  // Max 12.5% change per block
     }
 
-    step(dt = 1) {
-        // Generate next basefee value using GBM formula
+    step(dt = 1, timeStep = 0, spikeDelay = 0, spikeHeight = 0.3) {
+        // Generate demand pressure based on volatility and spikes
         const randomShock = this.generateNormal(0, 1);
-        const drift = (this.mu - 0.5 * this.sigma * this.sigma) * dt;
-        const diffusion = this.sigma * Math.sqrt(dt) * randomShock;
+        let demandPressure = this.sigma * randomShock;
 
-        this.currentValue *= Math.exp(drift + diffusion);
+        // Add controlled spike after delay
+        if (timeStep >= spikeDelay && timeStep < spikeDelay + 30) {
+            // Create realistic spike wave that follows EIP-1559 limits
+            const spikeProgress = (timeStep - spikeDelay) / 30;
+            const spikeIntensity = spikeHeight * Math.sin(spikeProgress * Math.PI) * 2;
+            demandPressure += spikeIntensity;
+        }
+
+        // Convert demand pressure to block gas usage
+        // demandPressure > 0 = high demand, < 0 = low demand
+        const normalizedDemand = Math.tanh(demandPressure); // Bound between -1 and 1
+        const gasUsed = this.TARGET_GAS + (normalizedDemand * (this.MAX_GAS - this.TARGET_GAS) * 0.5);
+
+        // EIP-1559 basefee adjustment formula
+        const gasUsedDelta = gasUsed - this.TARGET_GAS;
+        const baseFeePerGasDelta = Math.floor(this.currentBaseFee * gasUsedDelta / this.TARGET_GAS / 8);
+
+        // Apply the change with EIP-1559 limits
+        let newBaseFee = this.currentBaseFee + baseFeePerGasDelta;
+
+        // Enforce max change rate (12.5% per block)
+        const maxIncrease = this.currentBaseFee * this.BASE_FEE_MAX_CHANGE;
+        const maxDecrease = this.currentBaseFee / this.BASE_FEE_MAX_CHANGE;
+
+        newBaseFee = Math.min(newBaseFee, maxIncrease);
+        newBaseFee = Math.max(newBaseFee, maxDecrease);
 
         // Ensure basefee doesn't go below 1 gwei
-        this.currentValue = Math.max(this.currentValue, 1e9);
+        this.currentBaseFee = Math.max(newBaseFee, 1e9);
 
-        return this.currentValue;
+        return this.currentBaseFee;
     }
 
     seedableRandom(seed) {
@@ -42,8 +71,24 @@ class GeometricBrownianMotion {
     }
 }
 
+// Historical data cache
+const HISTORICAL_DATA = {
+    recent: null,
+    may2022: null,
+    june2022: null
+};
+
+// Data file mapping
+const DATA_FILES = {
+    recent: 'data_cache/recent_low_fees_3hours.csv',
+    may2022: 'data_cache/may_crash_basefee_data.csv',
+    june2022: 'data_cache/high_volatility_basefee_data.csv'
+    // Note: All periods are post-EIP-1559 with valid basefee data (EIP-1559 activated Aug 5, 2021)
+};
+
 class TaikoFeeSimulator {
     constructor(params) {
+
         this.mu = params.mu;                    // L1 cost weight
         this.nu = params.nu;                    // Deficit weight
         this.H = params.H;                      // Time horizon
@@ -54,12 +99,30 @@ class TaikoFeeSimulator {
         // Vault initialization
         this.vaultBalance = this.getInitialVaultBalance(params.vaultInit);
 
-        // L1 model parameters
-        this.l1Model = new GeometricBrownianMotion(0.0, params.l1Volatility, 10e9, params.seed || 42);
+        // L1 data source configuration
+        this.l1Source = params.l1Source || 'simulated';
+        this.historicalPeriod = params.historicalPeriod || 'may2022';
+        this.historicalData = null;
+        this.historicalIndex = 0;
+
+
+        // L1 model parameters (for simulated mode)
+        this.l1Model = new EIP1559BaseFeeSimulator(0.0, params.l1Volatility, 10e9, params.seed || 42);
+        this.spikeDelay = params.spikeDelay || 60;  // Delay spike by 60 steps (10 minutes)
+        this.spikeHeight = params.spikeHeight || 0.3;  // Spike intensity
 
         // Transaction parameters
-        this.gasPerTx = 2000;          // Gas per transaction
-        this.baseTxVolume = 100;       // Base transaction volume per step
+        this.baseTxVolume = params.baseTxVolume || 10;  // Expected transaction volume per step
+        this.batchGas = 200000;        // Gas cost for L1 batch submission
+
+        // Calculate gas per tx based on expected volume (economies of scale)
+        this.updateGasPerTx();
+    }
+
+    updateGasPerTx() {
+        // Economies of scale: more transactions = lower gas cost per tx
+        // Floor at 2000 gas to account for minimum batch overhead
+        this.gasPerTx = Math.max(this.batchGas / Math.max(this.baseTxVolume, 1), 2000);
     }
 
     getInitialVaultBalance(vaultInit) {
@@ -100,12 +163,83 @@ class TaikoFeeSimulator {
         return baseDemand * demandMultiplier;
     }
 
-    runSimulation(steps = 300) {
+    async loadHistoricalData() {
+        if (this.l1Source !== 'historical') {
+            return;
+        }
+
+        const period = this.historicalPeriod;
+
+        // Check if already cached
+        if (HISTORICAL_DATA[period]) {
+            this.historicalData = HISTORICAL_DATA[period];
+            this.historicalIndex = 0;
+            return;
+        }
+
+        try {
+            const response = await fetch(DATA_FILES[period]);
+            if (!response.ok) {
+                throw new Error(`Failed to load ${period} data: ${response.statusText}`);
+            }
+
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n');
+            const headers = lines[0].split(',');
+
+            const data = lines.slice(1).map(line => {
+                const values = line.split(',');
+                return {
+                    timestamp: values[0],
+                    basefee_wei: parseFloat(values[1]),
+                    basefee_gwei: parseFloat(values[2]),
+                    block_number: parseInt(values[3])
+                };
+            });
+
+            HISTORICAL_DATA[period] = data;
+            this.historicalData = data;
+            this.historicalIndex = 0;
+
+        } catch (error) {
+            console.error('Failed to load historical data:', error);
+            // Fallback to simulated data
+            this.l1Source = 'simulated';
+        }
+    }
+
+    getNextL1Basefee() {
+        if (this.l1Source === 'historical' && this.historicalData) {
+            // Use modulo to cycle through historical data
+            const dataPoint = this.historicalData[this.historicalIndex % this.historicalData.length];
+            const basefeeGwei = dataPoint.basefee_wei / 1e9;
+            this.historicalIndex++;
+            return dataPoint.basefee_wei;
+        } else {
+            const simulatedBasefee = this.l1Model.step(1, this.historicalIndex, this.spikeDelay, this.spikeHeight);
+            const simulatedGwei = simulatedBasefee / 1e9;
+            this.historicalIndex++;
+            return simulatedBasefee;
+        }
+    }
+
+    async runSimulation(steps = 300) {
+        // Load historical data if needed
+        await this.loadHistoricalData();
+
+        // Reset historical index to start from beginning of selected period
+        this.historicalIndex = 0;
+
+        // For historical data, use the full length of available data instead of fixed steps
+        const actualSteps = (this.l1Source === 'historical' && this.historicalData)
+            ? this.historicalData.length
+            : steps;
+
         const results = [];
 
-        for (let t = 0; t < steps; t++) {
+        for (let t = 0; t < actualSteps; t++) {
             // Get current L1 basefee
-            const l1Basefee = this.l1Model.step();
+            const l1Basefee = this.getNextL1Basefee();
 
             // Calculate vault deficit
             const vaultDeficit = Math.max(0, this.targetBalance - this.vaultBalance);

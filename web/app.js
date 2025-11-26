@@ -13,7 +13,6 @@ class TaikoFeeExplorer {
 
         // Auto-run simulation on page load
         setTimeout(() => {
-            this.toggleL1SourceControls(); // Initialize control visibility
             this.runSimulation();
         }, 500);
     }
@@ -44,18 +43,44 @@ class TaikoFeeExplorer {
             this.markParametersModified();
         });
 
+        document.getElementById('spike-delay-slider').addEventListener('input', (e) => {
+            document.getElementById('spike-delay-value').textContent = e.target.value;
+            this.clearActivePreset();
+            this.markParametersModified();
+        });
+
+        document.getElementById('spike-height-slider').addEventListener('input', (e) => {
+            document.getElementById('spike-height-value').textContent = e.target.value;
+            this.clearActivePreset();
+            this.markParametersModified();
+        });
+
+        document.getElementById('tx-per-block-slider').addEventListener('input', (e) => {
+            document.getElementById('tx-per-block-value').textContent = e.target.value;
+            this.clearActivePreset();
+            this.markParametersModified();
+        });
+
         // Vault initialization
         document.getElementById('vault-init').addEventListener('change', () => {
             this.clearActivePreset();
             this.markParametersModified();
         });
 
-        // L1 data source radio buttons
-        document.querySelectorAll('input[name="l1-source"]').forEach(radio => {
-            radio.addEventListener('change', () => {
-                this.toggleL1SourceControls();
+        // Tab buttons
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                this.switchTab(e.target.dataset.tab);
                 this.clearActivePreset();
-                this.markParametersModified();
+                this.runSimulation(); // Immediate update when switching data source
+            });
+        });
+
+        // Historical period selection
+        document.querySelectorAll('input[name="historical-period"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                this.clearActivePreset();
+                this.runSimulation(); // Immediate update when changing historical periods
             });
         });
 
@@ -146,18 +171,18 @@ class TaikoFeeExplorer {
         document.getElementById('info-h').textContent = params.H;
     }
 
-    toggleL1SourceControls() {
-        const l1Source = document.querySelector('input[name="l1-source"]:checked').value;
-        const seedGroup = document.getElementById('seed-group');
-        const volatilityGroup = document.getElementById('volatility-group');
+    switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`.tab-button[data-tab="${tabName}"]`).classList.add('active');
 
-        if (l1Source === 'simulated') {
-            seedGroup.style.display = 'block';
-            volatilityGroup.style.display = 'block';
-        } else {
-            seedGroup.style.display = 'none';
-            volatilityGroup.style.display = 'none';
-        }
+        // Update tab content
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('active');
+        });
+        document.getElementById(`${tabName}-tab`).classList.add('active');
     }
 
     updateParameterDisplays() {
@@ -165,17 +190,27 @@ class TaikoFeeExplorer {
         document.getElementById('nu-value').textContent = document.getElementById('nu-slider').value;
         document.getElementById('H-value').textContent = document.getElementById('H-slider').value;
         document.getElementById('volatility-value').textContent = document.getElementById('volatility-slider').value;
+        document.getElementById('tx-per-block-value').textContent = document.getElementById('tx-per-block-slider').value;
     }
 
     getCurrentParameters() {
+        // Determine active tab
+        const activeTab = document.querySelector('.tab-button.active').dataset.tab;
+        const isSimulated = activeTab === 'simulated';
+        const historicalPeriod = isSimulated ? null : document.querySelector('input[name="historical-period"]:checked').value;
+
         return {
             mu: parseFloat(document.getElementById('mu-slider').value),
             nu: parseFloat(document.getElementById('nu-slider').value),
             H: parseInt(document.getElementById('H-slider').value),
             l1Volatility: parseFloat(document.getElementById('volatility-slider').value),
-            l1Source: document.querySelector('input[name="l1-source"]:checked').value,
+            l1Source: isSimulated ? 'simulated' : 'historical',
+            historicalPeriod: historicalPeriod,
             seed: parseInt(document.getElementById('seed-input').value),
             vaultInit: document.getElementById('vault-init').value,
+            baseTxVolume: parseInt(document.getElementById('tx-per-block-slider').value),
+            spikeDelay: parseInt(document.getElementById('spike-delay-slider').value),
+            spikeHeight: parseFloat(document.getElementById('spike-height-slider').value),
             targetBalance: 1000,
             feeElasticity: 0.2,
             minFee: 1e-8
@@ -244,7 +279,7 @@ class TaikoFeeExplorer {
 
             // Run simulation (use setTimeout to make it non-blocking)
             await new Promise(resolve => setTimeout(resolve, 100));
-            const simulationData = simulator.runSimulation(300);
+            const simulationData = await simulator.runSimulation(300);
 
             console.log('Simulation completed, data points:', simulationData.length);
 

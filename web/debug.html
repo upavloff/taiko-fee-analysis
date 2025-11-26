@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Historical Data</title>
+    <script>
+        function testParameterRetrieval() {
+            // Test what getCurrentParameters would return
+            const activeTab = document.querySelector('.tab-button.active')?.dataset.tab;
+            const isSimulated = activeTab === 'simulated';
+            const historicalPeriod = isSimulated ? null : document.querySelector('input[name="historical-period"]:checked')?.value;
+
+            console.log('Active tab:', activeTab);
+            console.log('Is simulated:', isSimulated);
+            console.log('Historical period:', historicalPeriod);
+
+            const params = {
+                l1Source: isSimulated ? 'simulated' : 'historical',
+                historicalPeriod: historicalPeriod
+            };
+
+            console.log('Parameters that would be passed to simulator:', params);
+
+            // Display results
+            document.getElementById('results').innerHTML = `
+                <p>Active tab: ${activeTab}</p>
+                <p>Is simulated: ${isSimulated}</p>
+                <p>Historical period: ${historicalPeriod}</p>
+                <p>L1 source: ${params.l1Source}</p>
+            `;
+        }
+    </script>
+</head>
+<body>
+    <h1>Debug Historical Data Selection</h1>
+
+    <!-- Tab buttons -->
+    <div class="tab-navigation">
+        <button class="tab-button active" data-tab="historical">Historical</button>
+        <button class="tab-button" data-tab="simulated">Simulated</button>
+    </div>
+
+    <!-- Historical periods -->
+    <div class="historical-periods-list">
+        <label class="period-option">
+            <input type="radio" name="historical-period" value="recent" checked>
+            Recent Low Fees
+        </label>
+        <label class="period-option">
+            <input type="radio" name="historical-period" value="may2022">
+            May 2022 Crash
+        </label>
+        <label class="period-option">
+            <input type="radio" name="historical-period" value="defi-summer">
+            DeFi Summer
+        </label>
+    </div>
+
+    <button onclick="testParameterRetrieval()">Test Parameter Retrieval</button>
+    <div id="results"></div>
+</body>
+</html>

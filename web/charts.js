@@ -27,7 +27,7 @@ class ChartManager {
             data: {
                 labels: timeLabels,
                 datasets: [{
-                    label: 'Estimated Fee (ETH)',
+                    label: 'Taiko Estimated Fee (ETH)',
                     data: feeData,
                     borderColor: this.colors.primary,
                     backgroundColor: this.colors.primary + '20',
@@ -46,7 +46,7 @@ class ChartManager {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Fee Evolution Over Time',
+                        text: 'Taiko Estimated Fee Evolution Over Time',
                         font: { size: 14, weight: 600 },
                         color: '#2d3748',
                         padding: { bottom: 20 }
@@ -68,7 +68,7 @@ class ChartManager {
                             },
                             label: function(context) {
                                 const value = context.raw;
-                                return `Fee: ${value.toExponential(3)} ETH`;
+                                return `Taiko Estimated Fee: ${value.toExponential(3)} ETH`;
                             }
                         }
                     }
@@ -187,7 +187,11 @@ class ChartManager {
                             },
                             label: function(context) {
                                 const value = context.raw;
-                                return `${context.dataset.label}: ${value.toFixed(1)} ETH`;
+                                if (context.dataset.label === 'Vault Balance (ETH)') {
+                                    return `${context.dataset.label}: ${value.toFixed(6)} ETH`;
+                                } else {
+                                    return `${context.dataset.label}: ${value.toFixed(1)} ETH`;
+                                }
                             }
                         }
                     }
@@ -354,7 +358,7 @@ class ChartManager {
             type: 'scatter',
             data: {
                 datasets: [{
-                    label: 'Fee vs L1 Basefee',
+                    label: 'Taiko Estimated Fee vs L1 Basefee',
                     data: scatterData,
                     backgroundColor: this.colors.accent + '60',
                     borderColor: this.colors.accent,
@@ -373,7 +377,7 @@ class ChartManager {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Fee vs L1 Basefee Correlation',
+                        text: 'Taiko Estimated Fee vs L1 Basefee Correlation',
                         font: { size: 14, weight: 600 },
                         color: '#2d3748',
                         padding: { bottom: 20 }
@@ -397,7 +401,7 @@ class ChartManager {
                                 const point = context.raw;
                                 return [
                                     `L1 Basefee: ${point.x.toFixed(2)} gwei`,
-                                    `Fee: ${point.y.toExponential(3)} ETH`
+                                    `Taiko Estimated Fee: ${point.y.toExponential(3)} ETH`
                                 ];
                             }
                         }
@@ -422,7 +426,7 @@ class ChartManager {
                     y: {
                         title: {
                             display: true,
-                            text: 'Estimated Fee (ETH)',
+                            text: 'Taiko Estimated Fee (ETH)',
                             color: '#4a5568',
                             font: { size: 12 }
                         },
