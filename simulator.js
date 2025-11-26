@@ -412,33 +412,33 @@ class MetricsCalculator {
 // SCIENTIFICALLY CORRECTED Preset configurations - Based on proper gas calculation
 // CRITICAL: Previous presets were based on 100x underestimated L1 costs (200 gas vs 20,000 gas)
 const PRESETS = {
-    'optimal': {
-        mu: 0.0,
-        nu: 0.9,
-        H: 72,
-        description: '🎯 OPTIMAL: Research-proven best configuration',
-        useCase: 'Pure deficit correction with strong vault management. Minimal fees (~1.28e-8 ETH) across all crisis scenarios.'
+    'cheapest-fees': {
+        mu: 0.1,
+        nu: 0.0,
+        H: 24,
+        description: '💰 CHEAPEST: Absolute minimum L2 fees',
+        useCase: 'Minimizes L2 fees to ~16.4 gwei average. Minimal L1 tracking (0.1×) with no deficit correction. Optimized with corrected gas calculation (2000 gas/tx).'
     },
-    'conservative': {
+    'balanced-cheap': {
+        mu: 0.1,
+        nu: 0.1,
+        H: 72,
+        description: '⚖️ BALANCED-CHEAP: Low fees with light vault management',
+        useCase: 'Very low fees (~18.8 gwei) with minimal vault deficit correction. Good compromise between cost and protocol stability.'
+    },
+    'vault-stable': {
         mu: 0.0,
         nu: 0.7,
         H: 72,
-        description: '🛡️ CONSERVATIVE: Gradual deficit correction',
-        useCase: 'Safer vault recovery with minimal fees. Lower ν for more gradual vault management. Excellent for protocol deployment.'
+        description: '🛡️ VAULT-STABLE: Deficit correction focused',
+        useCase: 'Prioritizes vault stability over minimal fees. Pure deficit correction with moderate recovery rate. Safer for protocol deployment.'
     },
     'crisis-resilient': {
         mu: 0.0,
         nu: 0.9,
         H: 144,
-        description: '⛑️ CRISIS-RESILIENT: Extended horizon stability',
-        useCase: 'Longer prediction horizon for extreme volatility. Maintains stability during all historical crisis scenarios.'
-    },
-    'experimental-l1': {
-        mu: 0.2,
-        nu: 0.9,
-        H: 72,
-        description: '🧪 EXPERIMENTAL: Minimal L1 tracking (WARNING: Expensive)',
-        useCase: 'Research only - tests minimal L1 tracking. Fees ~100x higher than optimal due to corrected L1 cost calculation.'
+        description: '⛑️ CRISIS-RESILIENT: Maximum stability',
+        useCase: 'Strongest vault management for extreme volatility. Extended horizon for crisis scenarios. Higher fees but maximum protocol stability.'
     }
 };
 

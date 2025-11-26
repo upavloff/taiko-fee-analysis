@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Find Cheapest L2 Fee Configuration</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .best { background-color: #e8f5e8; }
+        .comparison { background-color: #f0f8ff; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Find Cheapest L2 Fee Configuration</h1>
+    <div id="status">Loading simulator...</div>
+    <div id="results"></div>
+
+    <script src="simulator.js"></script>
+    <script>
+        console.log("🎯 CHEAPEST FEE ANALYSIS WITH CORRECTED GAS CALCULATION");
+
+        // Test data (simulated low basefee period)
+        const testBasefees = [];
+        for (let i = 0; i < 100; i++) {
+            // Simulate realistic low basefee range: 0.075 ± 0.01 gwei
+            const basefeeGwei = 0.075 + (Math.random() - 0.5) * 0.02;
+            testBasefees.push(basefeeGwei * 1e9); // Convert to wei
+        }
+
+        document.getElementById('status').innerHTML = `✅ Generated ${testBasefees.length} test basefees (0.065-0.085 gwei range)`;
+
+        // Parameter ranges focused on fee minimization
+        const muValues = [0.0, 0.1, 0.2];
+        const nuValues = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9];
+        const HValues = [24, 48, 72, 144];
+
+        const results = [];
+        let testCount = 0;
+
+        console.log("Testing parameter combinations...");
+
+        muValues.forEach(mu => {
+            nuValues.forEach(nu => {
+                HValues.forEach(H => {
+                    // Skip invalid combinations
+                    if (mu === 0 && nu === 0) return;
+
+                    const params = {
+                        mu: mu,
+                        nu: nu,
+                        H: H,
+                        txsPerBatch: 100,  // CORRECTED VALUE
+                        minFee: 1e-8,
+                        targetBalance: 1.0,
+                        l1Volatility: 0.3,
+                        feeElasticity: 0.5
+                    };
+
+                    try {
+                        const simulator = new TaikoFeeSimulator(params);
+
+                        // Verify we're using corrected gas calculation
+                        const expectedGasPerTx = 200000 / 100; // 2000 gas
+                        console.log(`μ=${mu}, ν=${nu}, H=${H}: gasPerTx = ${simulator.gasPerTx} (expected: ${expectedGasPerTx})`);
+
+                        // Run simulation
+                        const fees = [];
+                        testBasefees.forEach(basefee => {
+                            const result = simulator.step(basefee, new Date());
+                            fees.push(result.fee);
+                        });
+
+                        const avgFeeETH = fees.reduce((sum, f) => sum + f, 0) / fees.length;
+                        const avgFeeGwei = avgFeeETH * 1e9;
+
+                        results.push({
+                            mu, nu, H,
+                            avgFeeETH,
+                            avgFeeGwei,
+                            gasPerTx: simulator.gasPerTx
+                        });
+
+                        testCount++;
+                    } catch (error) {
+                        console.error(`Error with μ=${mu}, ν=${nu}, H=${H}:`, error);
+                    }
+                });
+            });
+        });
+
+        // Sort by average fee (cheapest first)
+        results.sort((a, b) => a.avgFeeGwei - b.avgFeeGwei);
+
+        console.log("Analysis complete. Results:", results);
+
+        // Display results
+        let html = `<h2>🏆 ANALYSIS COMPLETE (${testCount} configurations tested)</h2>`;
+
+        html += `<div class="result best">
+            <h3>🥇 CHEAPEST CONFIGURATION</h3>
+            <strong>μ=${results[0].mu}, ν=${results[0].nu}, H=${results[0].H}</strong><br>
+            Average Fee: <strong>${results[0].avgFeeGwei.toFixed(6)} gwei</strong><br>
+            Gas per TX: ${results[0].gasPerTx} gas (corrected)<br>
+            Fee in ETH: ${results[0].avgFeeETH.toExponential(3)}
+        </div>`;
+
+        html += "<h3>🔢 Top 5 Cheapest Configurations:</h3>";
+        results.slice(0, 5).forEach((config, i) => {
+            html += `<div class="result">
+                ${i + 1}. μ=${config.mu}, ν=${config.nu}, H=${config.H}<br>
+                Fee: ${config.avgFeeGwei.toFixed(6)} gwei (${config.avgFeeETH.toExponential(3)} ETH)
+            </div>`;
+        });
+
+        // Compare with current presets
+        const currentOptimal = results.find(r => r.mu === 0.0 && r.nu === 0.9 && r.H === 72);
+        if (currentOptimal) {
+            const cheapest = results[0];
+            const improvement = ((currentOptimal.avgFeeGwei - cheapest.avgFeeGwei) / currentOptimal.avgFeeGwei * 100);
+
+            html += `<div class="result comparison">
+                <h3>📊 Comparison with Current "Optimal" Preset</h3>
+                Current "optimal" (μ=0.0, ν=0.9, H=72): ${currentOptimal.avgFeeGwei.toFixed(6)} gwei<br>
+                New cheapest: ${cheapest.avgFeeGwei.toFixed(6)} gwei<br>
+                <strong>Improvement: ${improvement > 0 ? improvement.toFixed(2) : '0'}% cheaper</strong>
+            </div>`;
+        }
+
+        // Generate preset code
+        const cheapest = results[0];
+        html += `<div class="result">
+            <h3>🔧 Recommended Preset Code:</h3>
+            <pre>'cheapest-fees': {
+    mu: ${cheapest.mu},
+    nu: ${cheapest.nu},
+    H: ${cheapest.H},
+    description: '💰 CHEAPEST: Absolute minimum L2 fees',
+    useCase: 'Minimizes L2 fees to ${cheapest.avgFeeGwei.toFixed(6)} gwei average. Uses corrected gas calculation (${cheapest.gasPerTx} gas/tx).'
+}</pre>
+        </div>`;
+
+        document.getElementById('results').innerHTML = html;
+        document.getElementById('status').innerHTML = "✅ Analysis complete! Scroll down for results.";
+    </script>
+</body>
+</html>
