@@ -991,3 +991,226 @@ html {
 .charts-section::-webkit-scrollbar-thumb:hover {
     background: #a0aec0;
 }
+
+/* Preset Tooltip Styles */
+.preset-btn {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.preset-tooltip-trigger {
+    opacity: 0.7;
+    font-size: 12px;
+    color: #666;
+    margin-left: 8px;
+    transition: opacity 0.2s ease;
+}
+
+.preset-tooltip-trigger:hover {
+    opacity: 1;
+    color: #333;
+}
+
+.preset-btn.featured .preset-tooltip-trigger {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.preset-btn.featured .preset-tooltip-trigger:hover {
+    color: white;
+}
+
+.preset-tooltip-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(3px);
+}
+
+.preset-tooltip-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.preset-tooltip-header {
+    background: #2d3748;
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.preset-tooltip-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.preset-tooltip-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    font-weight: normal;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.preset-tooltip-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.preset-tooltip-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.preset-detail-section {
+    margin-bottom: 20px;
+}
+
+.preset-detail-section h5 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2d3748;
+    margin: 0 0 8px 0;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 4px;
+}
+
+.preset-detail-section:last-child {
+    margin-bottom: 0;
+}
+
+.preset-parameters {
+    display: flex;
+    gap: 16px;
+    background: #f7fafc;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+    flex-wrap: wrap;
+}
+
+.preset-param {
+    background: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+    color: #2d3748;
+}
+
+.preset-formula {
+    background: #f7fafc;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+    border-left: 4px solid #667eea;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+}
+
+.preset-optimization {
+    background: #e6fffa;
+    border: 1px solid #81e6d9;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+}
+
+.preset-optimization h6 {
+    margin: 0 0 6px 0;
+    color: #234e52;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.preset-optimization-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 11px;
+    color: #2d3748;
+}
+
+.preset-optimization-list li {
+    padding: 2px 0;
+    display: flex;
+    align-items: center;
+}
+
+.preset-optimization-list li::before {
+    content: "✓";
+    color: #38a169;
+    font-weight: bold;
+    margin-right: 6px;
+}
+
+.preset-performance {
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+}
+
+.preset-performance h6 {
+    margin: 0 0 8px 0;
+    color: #742a2a;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.preset-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 4px 0;
+    font-size: 11px;
+    color: #2d3748;
+}
+
+.preset-metric-value {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-weight: 600;
+    color: #2b6cb0;
+}
+
+.preset-use-case {
+    background: #f0fff4;
+    border: 1px solid #c6f6d5;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+    color: #234e52;
+    font-size: 12px;
+    line-height: 1.4;
+}

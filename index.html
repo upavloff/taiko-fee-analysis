@@ -39,10 +39,10 @@
                 <!-- Mu Parameter -->
                 <div class="parameter-group">
                     <label for="mu-slider" class="parameter-label">
-                        μ (L1 Weight): <span id="mu-value">0.4</span>
+                        μ (L1 Weight): <span id="mu-value">0.0</span>
                         <span class="tooltip" data-tooltip="Controls how much L1 costs influence L2 fees. L1 costs are calculated as: (trend L1 basefee × gas per L2 tx). Gas per tx = batch gas cost ÷ transactions per batch. Higher μ values make L2 fees track L1 conditions more closely.">ℹ️</span>
                     </label>
-                    <input type="range" id="mu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.4">
+                    <input type="range" id="mu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.0">
                     <div class="range-labels">
                         <span>0.0</span>
                         <span>1.0</span>
@@ -52,10 +52,10 @@
                 <!-- Nu Parameter -->
                 <div class="parameter-group">
                     <label for="nu-slider" class="parameter-label">
-                        ν (Deficit Weight): <span id="nu-value">0.3</span>
+                        ν (Deficit Weight): <span id="nu-value">0.7</span>
                         <span class="tooltip" data-tooltip="Controls strength of vault deficit correction. Higher values = faster correction. 0 = no deficit correction, 1 = maximum correction.">ℹ️</span>
                     </label>
-                    <input type="range" id="nu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.3">
+                    <input type="range" id="nu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.7">
                     <div class="range-labels">
                         <span>0.0</span>
                         <span>1.0</span>
@@ -65,10 +65,10 @@
                 <!-- H Parameter -->
                 <div class="parameter-group">
                     <label for="H-slider" class="parameter-label">
-                        H (Horizon): <span id="H-value">144</span> steps
+                        H (Horizon): <span id="H-value">72</span> steps
                         <span class="tooltip" data-tooltip="Time horizon for L1 cost prediction. 144 steps ≈ 1 day.">ℹ️</span>
                     </label>
-                    <input type="range" id="H-slider" class="parameter-slider" min="24" max="576" step="24" value="144">
+                    <input type="range" id="H-slider" class="parameter-slider" min="24" max="576" step="24" value="72">
                     <div class="range-labels">
                         <span>24</span>
                         <span>576</span>
@@ -78,13 +78,13 @@
                 <!-- Transactions Per Block -->
                 <div class="parameter-group">
                     <label for="tx-per-block-slider" class="parameter-label">
-                        Transactions Per Block: <span id="tx-per-block-value">100</span>
-                        <span class="tooltip" data-tooltip="Expected transactions per Taiko block. Used for L1 cost calculation (economies of scale) and demand modeling.">ℹ️</span>
+                        Transactions Per L1 Batch: <span id="tx-per-block-value">100</span>
+                        <span class="tooltip" data-tooltip="Number of transactions per L1 batch submission. Gas cost per tx = 200k gas ÷ txs per batch. Higher values = lower gas cost per tx. Matches Python implementation defaults.">ℹ️</span>
                     </label>
-                    <input type="range" id="tx-per-block-slider" class="parameter-slider" min="1" max="200" step="1" value="10">
+                    <input type="range" id="tx-per-block-slider" class="parameter-slider" min="50" max="500" step="10" value="100">
                     <div class="range-labels">
-                        <span>1</span>
-                        <span>200</span>
+                        <span>50</span>
+                        <span>500</span>
                     </div>
                 </div>
 
@@ -251,13 +251,38 @@
 
             <!-- Quick Presets -->
             <div class="preset-section">
-                <h3>Research-Based Presets</h3>
-                <p class="preset-description">Based on comprehensive parameter optimization across 4 crisis scenarios</p>
+                <h3>🎯 Research-Validated Presets</h3>
+                <p class="preset-description">Parameter configurations based on comprehensive analysis across historical crisis scenarios. Pure deficit correction (μ=0) optimal for minimal fees.</p>
                 <div class="preset-buttons">
-                    <button class="preset-btn featured" data-preset="optimal">🎯 Optimal</button>
-                    <button class="preset-btn" data-preset="conservative">🛡️ Conservative</button>
-                    <button class="preset-btn" data-preset="balanced">⚖️ Balanced</button>
-                    <button class="preset-btn" data-preset="crisis-ready">🚨 Crisis Ready</button>
+                    <button class="preset-btn featured" data-preset="optimal">
+                        🎯 Optimal
+                        <span class="preset-tooltip-trigger">ⓘ</span>
+                    </button>
+                    <button class="preset-btn" data-preset="conservative">
+                        🛡️ Conservative
+                        <span class="preset-tooltip-trigger">ⓘ</span>
+                    </button>
+                    <button class="preset-btn" data-preset="crisis-resilient">
+                        ⛑️ Crisis-Resilient
+                        <span class="preset-tooltip-trigger">ⓘ</span>
+                    </button>
+                    <button class="preset-btn" data-preset="experimental-l1">
+                        🧪 Experimental L1
+                        <span class="preset-tooltip-trigger">ⓘ</span>
+                    </button>
+                </div>
+
+                <!-- Detailed Preset Tooltips -->
+                <div id="preset-tooltip-modal" class="preset-tooltip-modal" style="display: none;">
+                    <div class="preset-tooltip-content">
+                        <div class="preset-tooltip-header">
+                            <h4 id="preset-tooltip-title"></h4>
+                            <button class="preset-tooltip-close">&times;</button>
+                        </div>
+                        <div class="preset-tooltip-body">
+                            <div id="preset-tooltip-details"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -381,16 +406,6 @@
                     </div>
                 </div>
 
-                <!-- L2 Estimated Fees Visualization -->
-                <div class="l2-fees-section">
-                    <h4>L2 Estimated Fees Analysis</h4>
-                    <div class="chart-container-single">
-                        <canvas id="l2-fees-chart"></canvas>
-                    </div>
-                    <div class="estimation-explanation">
-                        <p><strong>L2 Fee Components:</strong> Shows the breakdown of L2 estimated fees into L1 cost component (μ × L1_cost) and deficit correction component (ν × deficit/H). With μ=0, fees are entirely driven by vault deficit correction, demonstrating how the mechanism maintains sustainability through deficit-based pricing.</p>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

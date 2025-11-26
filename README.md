@@ -23,7 +23,7 @@ $$F_E(t) = \max\left(\mu \times C_{L1}(t) + \nu \times \frac{D(t)}{H}, F_{\text{
 - $\nu \in [0,1]$: Deficit weight parameter controlling vault correction strength
 - $C_{L1}(t)$: L1 cost per transaction at time $t$
 - $D(t)$: Vault deficit at time $t$ (target balance - current balance)
-- $H$: Prediction horizon (number of steps, e.g., 144 ≈ 1 day)
+- $H$: Prediction horizon (number of steps, e.g., 144 = 288s ≈ 4.8 min)
 - $F_{\text{min}}$: Minimum fee threshold (1e-8 ETH)
 
 **L1 Cost Calculation:**
@@ -39,7 +39,6 @@ This implements economies of scale: higher transaction volume reduces per-transa
 
 ### Web Interface (Recommended)
 ```bash
-cd web
 open index.html  # Open in browser - fully static!
 ```
 
