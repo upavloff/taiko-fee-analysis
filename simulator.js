@@ -399,49 +399,35 @@ class MetricsCalculator {
     }
 }
 
-// Preset configurations
+// Preset configurations - Based on comprehensive parameter optimization research
 const PRESETS = {
-    'fee-stability': {
+    'optimal': {
         mu: 0.0,
-        nu: 0.4,
-        H: 144,
-        description: 'Minimizes fee volatility for best user experience',
-        useCase: 'DeFi protocols requiring predictable transaction costs'
-    },
-    'vault-management': {
-        mu: 0.6,
-        nu: 0.5,
-        H: 96,
-        description: 'Optimizes vault funding and reduces underfunding periods',
-        useCase: 'L2s concerned about treasury management'
-    },
-    'l1-tracking': {
-        mu: 0.8,
-        nu: 0.3,
+        nu: 0.9,
         H: 72,
-        description: 'Closely follows L1 costs for accurate fee pricing',
-        useCase: 'Applications that need fees reflecting true L1 costs'
-    },
-    'balanced': {
-        mu: 0.4,
-        nu: 0.3,
-        H: 144,
-        description: 'Good compromise across all metrics',
-        useCase: 'General purpose L2 with diverse application mix'
+        description: '🎯 OPTIMAL: Minimal fees with crisis resilience',
+        useCase: 'Best overall configuration - essentially free transactions while maintaining vault stability'
     },
     'conservative': {
-        mu: 0.2,
-        nu: 0.2,
-        H: 288,
-        description: 'Ultra-safe parameters for risk-averse deployments',
-        useCase: 'Initial launch or high-stakes financial applications'
+        mu: 0.0,
+        nu: 0.7,
+        H: 144,
+        description: '🛡️ CONSERVATIVE: Gradual deficit correction',
+        useCase: 'Safe deployment start - lower risk with minimal fees'
     },
-    'aggressive': {
-        mu: 0.7,
-        nu: 0.6,
+    'balanced': {
+        mu: 0.2,
+        nu: 0.5,
+        H: 144,
+        description: '⚖️ BALANCED: Moderate L1 tracking with stability',
+        useCase: 'Some L1 cost reflection with reasonable vault management'
+    },
+    'crisis-ready': {
+        mu: 0.0,
+        nu: 0.9,
         H: 48,
-        description: 'Fast-adapting parameters for dynamic environments',
-        useCase: 'High-frequency trading, MEV-sensitive applications'
+        description: '🚨 CRISIS-READY: Fast response to market volatility',
+        useCase: 'Maximum deficit correction speed for extreme scenarios'
     }
 };
 
