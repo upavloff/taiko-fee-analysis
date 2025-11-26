@@ -359,8 +359,12 @@ class MetricsCalculator {
         const feeStd = this.standardDeviation(fees);
         const feeCV = feeStd / avgFee;
 
-        // Time underfunded percentage
-        const underfundedSteps = vaultBalances.filter(balance => balance < this.targetBalance).length;
+        // Time underfunded percentage (with 0.01% threshold for meaningful underfunding)
+        // Only deficits > 0.01% of target balance are considered meaningfully underfunded
+        const significantDeficitThreshold = this.targetBalance * 0.0001; // 0.01% of target
+        const underfundedSteps = vaultBalances.filter(balance =>
+            (this.targetBalance - balance) > significantDeficitThreshold
+        ).length;
         const timeUnderfundedPct = (underfundedSteps / simulationData.length) * 100;
 
         // L1 tracking error (simplified)

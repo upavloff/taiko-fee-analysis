@@ -376,6 +376,7 @@ class TaikoFeeExplorer {
         this.chartManager.createL1Chart('l1-chart', simulationData);
         this.chartManager.createCorrelationChart('correlation-chart', simulationData);
         this.chartManager.createL1EstimationChart('l1-estimation-chart', simulationData);
+        this.chartManager.createL2FeesChart('l2-fees-chart', simulationData, params);
     }
 
     showLoading(show) {

@@ -95,13 +95,18 @@ class MetricsCalculator:
         vault_balance = df['vault_balance'].values
         deficit = df['vault_deficit'].values
 
+        # Apply 0.01% threshold for underfunded determination
+        # deficit > 0.01% of target balance is considered meaningfully underfunded
+        significant_deficit_threshold = self.target_balance * 0.0001  # 0.01% of target
+        significant_deficits = deficit > significant_deficit_threshold
+
         metrics = {
             'avg_vault_balance': np.mean(vault_balance),
             'vault_balance_std': np.std(vault_balance),
             'avg_deficit': np.mean(deficit),
             'deficit_std': np.std(deficit),
-            'time_underfunded_pct': np.mean(deficit > 0) * 100,
-            'time_overfunded_pct': np.mean(deficit < 0) * 100,
+            'time_underfunded_pct': np.mean(significant_deficits) * 100,
+            'time_overfunded_pct': np.mean(deficit < -significant_deficit_threshold) * 100,
             'max_deficit': np.max(deficit),
             'max_surplus': -np.min(deficit)  # Max negative deficit
         }

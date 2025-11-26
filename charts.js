@@ -658,6 +658,168 @@ class ChartManager {
         return this.charts[canvasId];
     }
 
+    createL2FeesChart(canvasId, data, params) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+
+        if (this.charts[canvasId]) {
+            this.charts[canvasId].destroy();
+        }
+
+        const timeLabels = data.map((_, i) => `${(i * 12 / 3600).toFixed(1)}h`);
+
+        // Calculate L1 and deficit components
+        const l1Components = data.map(d => {
+            const l1Cost = d.estimatedL1Cost || 0;
+            return params.mu * l1Cost; // L1 component: μ × L1_cost
+        });
+
+        const deficitComponents = data.map(d => {
+            const deficit = Math.max(0, d.vaultDeficit || 0);
+            return params.nu * deficit / params.H; // Deficit component: ν × deficit/H
+        });
+
+        const totalFees = data.map(d => d.estimatedFee || 0);
+
+        this.charts[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [
+                    {
+                        label: 'Total L2 Estimated Fee',
+                        data: totalFees,
+                        borderColor: this.colors.primary,
+                        backgroundColor: this.colors.primary + '20',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: 'L1 Cost Component (μ × L1_cost)',
+                        data: l1Components,
+                        borderColor: this.colors.success,
+                        backgroundColor: this.colors.success + '20',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        borderDash: [5, 5]
+                    },
+                    {
+                        label: 'Deficit Component (ν × deficit/H)',
+                        data: deficitComponents,
+                        borderColor: this.colors.warning,
+                        backgroundColor: this.colors.warning + '20',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        borderDash: [10, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'L2 Fee Components Over Time',
+                        color: '#2d3748',
+                        font: { size: 14, weight: 'bold' }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: '#4a5568',
+                            font: { size: 11 },
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#2d3748',
+                        bodyColor: '#4a5568',
+                        borderColor: '#e2e8f0',
+                        borderWidth: 1,
+                        cornerRadius: 6,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label;
+                                const value = context.parsed.y;
+                                if (value < 1e-6) {
+                                    return `${label}: ${(value * 1e9).toFixed(6)} gwei`;
+                                } else {
+                                    return `${label}: ${value.toFixed(8)} ETH`;
+                                }
+                            },
+                            afterLabel: function(context) {
+                                if (context.datasetIndex === 0) { // Total fee
+                                    const mu = params.mu;
+                                    const nu = params.nu;
+                                    return `Parameters: μ=${mu}, ν=${nu}`;
+                                }
+                                return '';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time',
+                            color: '#4a5568',
+                            font: { size: 12 }
+                        },
+                        grid: {
+                            color: '#e2e8f0'
+                        },
+                        ticks: {
+                            color: '#718096',
+                            font: { size: 10 }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Fee (ETH)',
+                            color: '#4a5568',
+                            font: { size: 12 }
+                        },
+                        grid: {
+                            color: '#e2e8f0'
+                        },
+                        ticks: {
+                            color: '#718096',
+                            font: { size: 10 },
+                            callback: function(value) {
+                                if (value < 1e-6) {
+                                    return (value * 1e9).toFixed(3) + ' gwei';
+                                } else {
+                                    return value.toExponential(2) + ' ETH';
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        return this.charts[canvasId];
+    }
+
     destroyAllCharts() {
         Object.values(this.charts).forEach(chart => {
             if (chart && typeof chart.destroy === 'function') {

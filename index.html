@@ -370,7 +370,7 @@
                     </div>
                 </div>
 
-                <!-- L1 Price Estimation Accuracy Chart -->
+                <!-- L1 Cost Estimation Analysis Chart -->
                 <div class="l1-estimation-section">
                     <h4>L1 Cost Estimation Analysis</h4>
                     <div class="chart-container-single">
@@ -378,6 +378,17 @@
                     </div>
                     <div class="estimation-explanation">
                         <p><strong>Trend vs Spot L1 Basefee:</strong> Shows how the smoothed trend basefee (used for L2 fee calculation) compares to actual spot L1 basefee. The trend approach reduces fee volatility while maintaining cost coverage. When μ=0, this chart shows the underlying L1 dynamics without affecting L2 fees.</p>
+                    </div>
+                </div>
+
+                <!-- L2 Estimated Fees Visualization -->
+                <div class="l2-fees-section">
+                    <h4>L2 Estimated Fees Analysis</h4>
+                    <div class="chart-container-single">
+                        <canvas id="l2-fees-chart"></canvas>
+                    </div>
+                    <div class="estimation-explanation">
+                        <p><strong>L2 Fee Components:</strong> Shows the breakdown of L2 estimated fees into L1 cost component (μ × L1_cost) and deficit correction component (ν × deficit/H). With μ=0, fees are entirely driven by vault deficit correction, demonstrating how the mechanism maintains sustainability through deficit-based pricing.</p>
                     </div>
                 </div>
             </div>
