@@ -27,6 +27,7 @@ $$F_E(t) = \max\left(\mu \times C_{L1}(t) + \nu \times \frac{D(t)}{H}, F_{\text{
 - $F_{\text{min}}$: Minimum fee threshold (1e-8 ETH)
 
 **L1 Cost Calculation:**
+
 $$C_{L1}(t) = \frac{\text{BaseFee}_{L1}(t) \times \text{Gas}_{\text{per tx}}}{10^{18}}$$
 
 Where:
