@@ -26,22 +26,31 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
 
-      - name: Create web directory with only needed files
+      - name: Create optimized web deployment
         run: |
           mkdir -p web_deploy
-          cp index.html web_deploy/ 2>/dev/null || echo "index.html not found"
+
+          # Copy only essential web files
+          cp index.html web_deploy/
           cp *.js web_deploy/ 2>/dev/null || echo "No JS files found"
           cp *.css web_deploy/ 2>/dev/null || echo "No CSS files found"
           cp CNAME web_deploy/ 2>/dev/null || echo "CNAME not found"
+
+          # Copy required data files
           mkdir -p web_deploy/data_cache
           if [ -d "data/data_cache" ] && [ -n "$(ls data/data_cache/*.csv 2>/dev/null)" ]; then
             cp data/data_cache/*.csv web_deploy/data_cache/
+            echo "✅ Copied $(ls data/data_cache/*.csv | wc -l) CSV files"
           else
-            echo "No CSV files found in data/data_cache/, creating empty directory"
+            echo "❌ No CSV files found, creating empty data_cache"
           fi
-          ls -la web_deploy/
+
+          # Show what we're deploying
+          echo "=== Deployment Contents ==="
+          find web_deploy -type f -exec ls -lh {} \;
+          echo "=== Total Size: $(du -sh web_deploy | cut -f1) ==="
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
