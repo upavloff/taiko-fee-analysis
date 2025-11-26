@@ -1,101 +1,146 @@
-# Taiko Fee Analysis
+# Taiko Fee Mechanism Analysis
 
-A professional-grade analysis framework for Taiko's fee mechanism design and optimization.
+A comprehensive scientific analysis framework for the Taiko protocol's fee mechanism, implementing EIP-1559 based fee estimation with vault deficit correction.
 
-## 🏗️ Architecture Overview
+## 🎯 Overview
 
-This repository follows enterprise-level architecture patterns with clear separation of concerns:
+This repository contains a complete analysis of Taiko's fee mechanism, including:
 
-```
-taiko-fee-analysis/
-├── src/                          # Source code (modular architecture)
-│   ├── core/                     # Core simulation components
-│   │   ├── fee_mechanism_simulator.py    # Base simulator engine
-│   │   └── improved_simulator.py         # Enhanced simulator with optimizations
-│   ├── data/                     # Data fetching and caching
-│   │   ├── rpc_data_fetcher.py          # RPC-based Ethereum data fetching
-│   │   └── real_data_fetcher.py         # Legacy data integration
-│   ├── analysis/                 # Analytics and metrics
-│   │   └── mechanism_metrics.py         # Performance metrics calculation
-│   └── utils/                    # Utility functions
-│       └── vault_initialization_demo.py # Demo utilities
-├── notebooks/                    # Jupyter analysis notebooks
-│   └── taiko_fee_analysis.ipynb         # Main research notebook
-├── data_cache/                   # Cached RPC data (auto-created)
-├── tests/                        # Unit tests (future)
-├── requirements.txt              # Python dependencies
-└── README.md                     # This file
-```
+- **Mathematical modeling** of the fee estimation formula
+- **Real-time simulation** with historical Ethereum L1 data
+- **Interactive web interface** for parameter exploration
+- **Comprehensive metrics** for mechanism evaluation
+
+## 📊 Fee Mechanism Formula
+
+The Taiko fee mechanism implements a dual-component pricing model:
+
+$$F_E(t) = \max\left(\mu \times C_{L1}(t) + \nu \times \frac{D(t)}{H}, F_{\text{min}}\right)$$
+
+**Component Definitions:**
+- $F_E(t)$: Estimated fee at time $t$ (in ETH)
+- $\mu \in [0,1]$: L1 weight parameter controlling L1 cost influence
+- $\nu \in [0,1]$: Deficit weight parameter controlling vault correction strength
+- $C_{L1}(t)$: L1 cost per transaction at time $t$
+- $D(t)$: Vault deficit at time $t$ (target balance - current balance)
+- $H$: Prediction horizon (number of steps, e.g., 144 ≈ 1 day)
+- $F_{\text{min}}$: Minimum fee threshold (1e-8 ETH)
+
+**L1 Cost Calculation:**
+$$C_{L1}(t) = \frac{\text{BaseFee}_{L1}(t) \times \text{Gas}_{\text{per tx}}}{10^{18}}$$
+
+Where:
+$$\text{Gas}_{\text{per tx}} = \max\left(\frac{200{,}000}{\text{Expected Tx Volume}}, 2{,}000\right)$$
+
+This implements economies of scale: higher transaction volume reduces per-transaction L1 cost due to batch efficiency, with a 2,000 gas minimum for overhead.
 
 ## 🚀 Quick Start
 
+### Web Interface (Recommended)
 ```bash
-# Setup environment
-pip install -r requirements.txt
-
-# Run main analysis
-jupyter notebook notebooks/taiko_fee_analysis.ipynb
+cd web
+open index.html  # Open in browser - fully static!
 ```
 
-## 📋 Component Descriptions
+### Python Analysis
+```bash
+# Setup environment
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 
-### Core Components (`src/core/`)
+# Run Jupyter analysis
+jupyter notebook analysis/notebooks/taiko_fee_analysis.ipynb
+```
 
-| File | Purpose | Key Classes |
-|------|---------|-------------|
-| `fee_mechanism_simulator.py` | Base simulation engine | `TaikoFeeSimulator`, `SimulationParams`, `FeeVault` |
-| `improved_simulator.py` | Enhanced simulator with optimizations | `ImprovedTaikoFeeSimulator`, `ImprovedSimulationParams` |
+## 📁 Repository Structure
 
-**Key Features:**
-- Monte Carlo simulation framework
-- Multiple L1 dynamics models (GBM, real data)
-- Configurable fee mechanism parameters (μ, ν, H)
-- Proper vault initialization strategies
+```
+taiko-fee-analysis/
+├── src/                           # Core simulation engine
+│   ├── core/                     # Fee mechanism simulation
+│   │   ├── fee_mechanism_simulator.py
+│   │   └── improved_simulator.py
+│   ├── data/                     # Data fetching & caching
+│   │   ├── rpc_data_fetcher.py
+│   │   └── real_data_fetcher.py
+│   ├── analysis/                 # Performance metrics
+│   │   └── mechanism_metrics.py
+│   └── utils/                    # Utility functions
+│       └── vault_initialization_demo.py
+├── web/                          # Interactive web interface (static)
+│   ├── index.html               # Main application
+│   ├── simulator.js             # JavaScript simulator
+│   ├── charts.js               # Visualization engine
+│   ├── styles.css              # UI styling
+│   └── data_cache/             # → ../data/data_cache (symlink)
+├── analysis/                     # Scientific analysis
+│   └── notebooks/               # Jupyter notebooks
+│       ├── taiko_fee_analysis.ipynb
+│       └── updated_taiko_analysis.ipynb
+├── data/                        # Historical L1 data
+│   └── data_cache/             # Cached basefee datasets
+│       ├── basefee_*.csv       # Historical Ethereum data
+│       ├── may_crash_basefee_data.csv
+│       └── high_volatility_basefee_data.csv
+├── docs/                        # Documentation
+│   └── README.md               # Research findings & methodology
+├── tests/                       # Test suite (future)
+├── requirements.txt             # Python dependencies
+└── README.md                   # This file
+```
 
-### Data Layer (`src/data/`)
+## 🔬 Features
 
-| File | Purpose | Key Features |
-|------|---------|-------------|
-| `rpc_data_fetcher.py` | **Primary data source** - RPC-based Ethereum basefee fetching | CSV caching, multiple providers, rate limiting |
-| `real_data_fetcher.py` | Legacy API-based data integration | Historical data analysis |
+### Web Interface
+- **Real-time parameter adjustment** with instant feedback
+- **Multiple data sources**: Historical Ethereum data & simulated scenarios
+- **Interactive visualizations**: Fee trends, vault dynamics, L1 tracking
+- **Preset configurations**: Optimized parameter sets for different use cases
+- **Performance metrics**: Comprehensive analysis dashboard
 
-**RPC Data Fetcher Features:**
-- ✅ **Automatic CSV caching** - Fetches once, caches forever
-- ✅ **Multiple RPC providers** - Public, Infura, Alchemy support
-- ✅ **Intelligent rate limiting** - Respects provider limits
-- ✅ **Error handling** - Graceful fallbacks
+### Python Framework
+- **Modular architecture** with clear separation of concerns
+- **Data caching** for efficient historical data retrieval
+- **Flexible simulation** with customizable parameters
+- **Extensive metrics** for mechanism evaluation
 
-### Analysis Engine (`src/analysis/`)
+## 📈 Analysis Capabilities
 
-| File | Purpose | Key Metrics |
-|------|---------|-------------|
-| `mechanism_metrics.py` | Performance evaluation framework | Fee stability, vault management, L1 tracking accuracy |
+### Historical Data Analysis
+- **May 2022 Crypto Crash**: UST/Luna collapse period (53-533 gwei)
+- **June 2022 High Volatility**: NFT/DeFi activity spikes (8-21,845 gwei)
+- **Recent Low Fee Period**: Current market conditions (0.055-0.092 gwei)
 
-**Metrics Calculated:**
-- Fee volatility (coefficient of variation)
-- Vault underfunding percentage
-- L1 cost tracking error
-- Response lag to L1 changes
+### Simulation Scenarios
+- **Geometric Brownian Motion** for realistic L1 basefee modeling
+- **Volatility spikes** with configurable timing and intensity
+- **Various vault initialization** states for comprehensive testing
 
-### Utilities (`src/utils/`)
+### Performance Metrics
+- **Average Fee**: Mean transaction cost over simulation period
+- **Fee Variability (CV)**: Coefficient of variation for stability analysis
+- **Time Underfunded**: Percentage of time below vault target
+- **L1 Tracking Error**: Deviation from actual L1 costs
 
-| File | Purpose |
-|------|---------|
-| `vault_initialization_demo.py` | Demonstration utilities for proper vault setup |
+## 🎛️ Key Parameters
 
-## 🔬 Research Framework
+| Parameter | Range | Description | Impact |
+|-----------|-------|-------------|---------|
+| μ (mu) | 0.0-1.0 | L1 weight | Higher = more L1 cost tracking |
+| ν (nu) | 0.1-0.9 | Deficit weight | Higher = faster vault correction |
+| H | 24-576 | Horizon (steps) | Longer = smoother adjustments |
 
-### Core Research Questions
-1. **μ=0 Viability**: Can Taiko use only deficit correction without L1 cost tracking?
-2. **Parameter Optimization**: Optimal values for (μ, ν, H) parameters
-3. **Real Data Performance**: Mechanism behavior under actual Ethereum conditions
-4. **Vault Initialization**: Impact of starting vault balance on performance
+## 📖 Scientific Validation
 
-### Key Findings
-- ✅ **Vault initialization is critical** - Empty vault creates extreme initial fees
-- ✅ **μ=0 is viable** but has slower L1 response (higher lag)
-- ✅ **Optimal parameters**: μ=0.3-0.5, ν=0.3, H=144 blocks
-- ✅ **Current Ethereum**: ~0.1 gwei basefee (very stable post-merge)
+All analysis uses **post-EIP-1559 data only** (August 5, 2021+) to ensure compatibility with Ethereum's current base fee mechanism. Pre-EIP-1559 gas auction data is excluded for methodological accuracy.
+
+## 🌐 Live Demo
+
+The web interface is fully static and can be deployed to any hosting platform:
+- **GitHub Pages** (for public repos)
+- **Netlify/Vercel** (supports private repos)
+- **Local hosting** (open `web/index.html`)
 
 ## 💻 Usage Examples
 
@@ -107,7 +152,7 @@ from src.core import ImprovedTaikoFeeSimulator, ImprovedSimulationParams, Geomet
 params = ImprovedSimulationParams(
     mu=0.5, nu=0.3, H=144,
     target_balance=1000,
-    vault_initialization_mode="target",  # Critical!
+    vault_initialization_mode="target",
     total_steps=500
 )
 
@@ -126,7 +171,7 @@ integrator = ImprovedRealDataIntegrator()
 df = integrator.get_real_basefee_data(
     '2023-11-20', '2023-11-23',
     provider='ethereum_public',
-    use_cache=True  # Default
+    use_cache=True
 )
 ```
 
@@ -142,106 +187,31 @@ print(f"Fee stability (CV): {metrics.fee_cv:.3f}")
 print(f"Time underfunded: {metrics.time_underfunded_pct:.1f}%")
 ```
 
-## 🗄️ Data Management
-
-### Automatic Caching System
-The RPC data fetcher implements intelligent caching:
-
-```python
-# First call: fetches from RPC and caches
-df1 = integrator.get_real_basefee_data('2023-11-20', '2023-11-23')
-
-# Second call: loads instantly from cache
-df2 = integrator.get_real_basefee_data('2023-11-20', '2023-11-23')
-```
-
-**Cache Location:** `data_cache/basefee_{start_date}_{end_date}_{provider}.csv`
-
-### Multiple RPC Providers
-- **ethereum_public**: Public RPC (free, rate limited)
-- **cloudflare**: Cloudflare Ethereum Gateway
-- **infura**: Infura (requires project ID)
-- **alchemy**: Alchemy (requires API key)
-
-## 🧪 Development Best Practices
-
-### Code Organization
-- **Separation of Concerns**: Clear module boundaries
-- **Dependency Injection**: Configurable components
-- **Error Handling**: Graceful degradation
-- **Caching Strategy**: Minimize external API calls
-- **Type Hints**: Enhanced code clarity
-
-### Import Structure
-```python
-# Clean imports using package structure
-from src.core import *                    # All simulation components
-from src.analysis import MetricsCalculator # Specific imports
-from src.data import ImprovedRealDataIntegrator
-```
-
 ## 🔧 Installation
 
 ```bash
 # Create virtual environment (recommended)
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-# or
-venv\Scripts\activate     # Windows
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Launch Jupyter
-jupyter notebook notebooks/taiko_fee_analysis.ipynb
+# Register Jupyter kernel
+python -m ipykernel install --user --name taiko-analysis --display-name "Taiko Analysis"
+
+# Launch analysis
+jupyter notebook analysis/notebooks/taiko_fee_analysis.ipynb
 ```
-
-## 📊 Performance Benchmarks
-
-### Simulation Performance
-- **Standard run** (500 steps): ~2-3 seconds
-- **Parameter sweep** (5x5 grid): ~45-60 seconds
-- **Real data integration**: First fetch ~30-60s, cached <1s
-
-### Memory Usage
-- **Base simulation**: ~10-20 MB
-- **Large dataset** (1000+ blocks): ~50-100 MB
-- **Multiple scenarios**: Scales linearly
-
-## 🔮 Future Enhancements
-
-### Planned Features
-- [ ] **Unit test suite** (`tests/` directory)
-- [ ] **CLI interface** for automated analysis
-- [ ] **Docker containerization** for reproducibility
-- [ ] **Enhanced visualization** with Plotly
-- [ ] **Parameter optimization** with scipy
-
-### Research Extensions
-- [ ] **Arbitrum mechanism comparison**
-- [ ] **MEV impact analysis**
-- [ ] **Multi-chain data integration**
-- [ ] **Production deployment guide**
-
-## 📈 Research Status
-
-- ✅ **Core Framework**: Production-ready simulation engine
-- ✅ **Data Infrastructure**: Robust RPC integration with caching
-- ✅ **Analysis Tools**: Comprehensive metrics calculation
-- ✅ **Research Findings**: Key insights documented
-- 🔄 **Optimization**: Parameter tuning in progress
-- 📋 **Documentation**: Architecture fully documented
-
-## 🤝 Contributing
-
-This is a research-grade framework. Contributions should focus on:
-
-1. **Code Quality**: Following established architecture patterns
-2. **Performance**: Optimizing simulation speed and memory usage
-3. **Analysis**: New metrics or evaluation approaches
-4. **Data**: Additional RPC providers or data sources
-5. **Testing**: Unit tests and validation frameworks
 
 ## 📄 License
 
-MIT License - See LICENSE file for details.
+MIT License - see LICENSE file for details.
+
+## 🤝 Contributing
+
+Contributions welcome! Please see our contributing guidelines for details.
+
+---
+
+*Built for the Nethermind research team - Advancing Ethereum's Layer 2 ecosystem through rigorous analysis.*
