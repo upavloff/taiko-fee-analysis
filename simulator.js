@@ -434,13 +434,6 @@ const PRESETS = {
         description: '⚖️ BALANCED: Research-optimized balanced strategy',
         useCase: 'BALANCED STRATEGY: μ=0.0, ν=0.1, H=576. Risk score: 0.1309. Balances fee minimization with risk management and vault stability.'
     },
-    'conservative': {
-        mu: 0.0,
-        nu: 0.1,
-        H: 576,
-        description: '🛡️ CONSERVATIVE: Research-proven crisis resilient strategy',
-        useCase: 'CONSERVATIVE STRATEGY: μ=0.0, ν=0.1, H=576. Risk score: 0.1309. Prioritizes vault stability and crisis resilience with extended horizon.'
-    },
     'crisis-resilient': {
         mu: 0.0,
         nu: 0.9,
