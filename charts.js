@@ -21,7 +21,7 @@ class ChartManager {
 
         const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
         // Convert from per-transaction ETH to per-gas gwei: (ETH * 1e9) / gasPerTx
-        const feeData = data.map(d => (d.estimatedFee * 1e9) / (gasPerTx || 2000)); // Default gasPerTx = 2000 if not provided
+        const feeData = data.map(d => (d.estimatedFee * 1e9) / (gasPerTx || 200)); // Default gasPerTx = 200 (corrected from bug analysis)
 
         this.charts[canvasId] = new Chart(ctx, {
             type: 'line',
@@ -352,7 +352,7 @@ class ChartManager {
         // Create scatter plot data
         const scatterData = data.map(d => ({
             x: d.l1Basefee / 1e9, // gwei
-            y: (d.estimatedFee * 1e9) / (gasPerTx || 2000) // Convert ETH to per-gas gwei
+            y: (d.estimatedFee * 1e9) / (gasPerTx || 200) // Convert ETH to per-gas gwei (corrected default)
         }));
 
         this.charts[canvasId] = new Chart(ctx, {

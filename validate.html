@@ -108,7 +108,7 @@
                 );
 
                 // Test 6: Metrics calculation
-                const metricsCalc = new MetricsCalculator(100, 2000);
+                const metricsCalc = new MetricsCalculator(100, 200);
                 const metrics = metricsCalc.calculateMetrics(results);
                 const metricsWork = typeof metrics.avgFee === 'number' &&
                                   typeof metrics.feeCV === 'number' &&

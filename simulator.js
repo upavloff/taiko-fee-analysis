@@ -138,12 +138,12 @@ class TaikoFeeSimulator {
     }
 
     updateGasPerTx() {
-        // Match README.md formula: max(200,000 / Expected Tx Volume, 2,000)
-        // This implements economies of scale with a 2,000 gas minimum for overhead
+        // CORRECTED: max(200,000 / Expected Tx Volume, 200) - fixed from bug analysis
+        // This implements economies of scale with a 200 gas minimum for overhead
         const baseGasPerTx = this.batchGas / this.txsPerBatch;
-        this.gasPerTx = Math.max(baseGasPerTx, 2000);
+        this.gasPerTx = Math.max(baseGasPerTx, 200);
 
-        console.log(`gasPerTx = max(${this.batchGas} / ${this.txsPerBatch}, 2000) = max(${baseGasPerTx}, 2000) = ${this.gasPerTx} gas`);
+        console.log(`gasPerTx = max(${this.batchGas} / ${this.txsPerBatch}, 200) = max(${baseGasPerTx}, 200) = ${this.gasPerTx} gas`);
         console.log(`L1 cost per tx = basefee * ${this.gasPerTx} / 1e18`);
     }
 

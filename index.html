@@ -152,14 +152,14 @@
                         <div class="tab-pane active" id="historical-tab">
                             <div class="historical-periods-list">
                                 <label class="period-option">
-                                    <input type="radio" name="historical-period" value="may2023">
+                                    <input type="radio" name="historical-period" value="may2023" checked>
                                     <div class="period-content">
                                         <div class="period-title">May 2023 PEPE Crisis</div>
                                         <div class="period-description">Memecoin mania extreme fees (60-184 gwei)</div>
                                     </div>
                                 </label>
                                 <label class="period-option">
-                                    <input type="radio" name="historical-period" value="may2022" checked>
+                                    <input type="radio" name="historical-period" value="may2022">
                                     <div class="period-content">
                                         <div class="period-title">May 2022 Crash</div>
                                         <div class="period-description">UST/Luna collapse (53-533 gwei)</div>
@@ -307,9 +307,9 @@
                                 $$C_{L1}(t) = \frac{\text{BaseFee}_{L1}(t) \times \text{Gas}_{\text{per tx}}}{10^{18}}$$
                                 Where:<br>
                                 • $\text{BaseFee}_{L1}(t)$ = Current L1 basefee at time $t$ (in wei)<br>
-                                • $\text{Gas}_{\text{per tx}} = \max\left(\frac{200{,}000}{\text{Expected Tx Volume}}, 2000\right)$ gas<br>
+                                • $\text{Gas}_{\text{per tx}} = \max\left(\frac{200{,}000}{\text{Expected Tx Volume}}, 200\right)$ gas<br>
                                 • Economies of scale: Higher expected volume → Lower gas cost per transaction<br>
-                                • Floor at 2,000 gas accounts for minimum batch overhead
+                                • Floor at 200 gas accounts for minimum batch overhead
                             </div>
                         </div>
                     </div>

@@ -39,7 +39,7 @@ try {
 
     // Test 4: MetricsCalculator
     console.log('\nTest 4: MetricsCalculator');
-    const metricsCalc = new MetricsCalculator(100, 2000);
+    const metricsCalc = new MetricsCalculator(100, 200);
     const metrics = metricsCalc.calculateMetrics(results);
     console.log('✅ Metrics calculated:');
     console.log('   Average Fee:', metrics.avgFee.toExponential(2), 'ETH');
