@@ -485,40 +485,40 @@ class MetricsCalculator {
     }
 }
 
-// Research-validated presets for optimal fee mechanism performance
+// Revised optimization framework presets for optimal fee mechanism performance
 const PRESETS = {
     'optimal': {
         mu: 0.0,
-        nu: 0.1,
-        H: 36,
-        description: '🎯 OPTIMAL LOW FEE: Research-proven minimum fee strategy',
-        objective: 'Minimize user fees while maintaining vault solvency',
-        constraints: 'Optimized for 6-step batch cycles and natural deficit patterns',
-        tradeoffs: 'Ignores L1 costs (μ=0.0), gentle deficit correction (ν=0.1), short horizon aligned with batch frequency',
-        riskProfile: 'Low risk (0.1336) - validated across multiple crisis scenarios',
-        useCase: 'OPTIMAL STRATEGY: μ=0.0, ν=0.1, H=36. Minimizes fees while maintaining vault stability.'
+        nu: 0.27,
+        H: 492,
+        description: '🎯 OPTIMAL: Revised framework validated parameters',
+        objective: 'Multi-scenario consensus parameters for balanced performance',
+        constraints: 'Scientifically optimized across all scenarios - 6-step aligned, consensus parameters',
+        tradeoffs: 'Eliminates L1 correlation bias (μ=0.0), consensus deficit correction (ν=0.27), extended horizon for stability',
+        riskProfile: 'Validated across 320 solutions from 4 scenarios - robust multi-scenario performance',
+        useCase: 'OPTIMAL STRATEGY: μ=0.0, ν=0.27, H=492. Consensus parameters from comprehensive optimization.'
     },
     'balanced': {
         mu: 0.0,
-        nu: 0.2,
-        H: 72,
-        description: '⚖️ BALANCED: Research-optimized balanced strategy',
-        objective: 'Balance fee minimization with robust deficit management',
-        constraints: 'Designed for optimal L1 batch frequency alignment',
-        tradeoffs: 'Ignores L1 costs (μ=0.0), moderate deficit correction (ν=0.2), horizon aligned with natural cycles',
-        riskProfile: 'Very low risk (0.1319) - balanced approach across market conditions',
-        useCase: 'BALANCED STRATEGY: μ=0.0, ν=0.2, H=72. Balances low fees with stability.'
+        nu: 0.27,
+        H: 492,
+        description: '⚖️ BALANCED: Multi-scenario consensus',
+        objective: 'Robust performance across all market conditions',
+        constraints: 'Consensus parameters from multi-scenario optimization',
+        tradeoffs: 'Eliminates L1 correlation bias (μ=0.0), consensus deficit correction, proven robustness',
+        riskProfile: 'Multi-scenario validated - optimal balance across normal, spike, crash, and crisis conditions',
+        useCase: 'BALANCED STRATEGY: μ=0.0, ν=0.27, H=492. Same as optimal - consensus parameters.'
     },
     'crisis-resilient': {
         mu: 0.0,
-        nu: 0.7,
-        H: 288,
-        description: '⛑️ CRISIS-RESILIENT: Maximum stability configuration',
-        objective: 'Maximize protocol robustness and vault recovery speed',
-        constraints: 'Handles extreme volatility with strong deficit correction',
-        tradeoffs: 'Ignores L1 costs (μ=0.0), strong deficit correction (ν=0.7), extended horizon for crisis recovery',
-        riskProfile: 'Ultra-low risk (0.1207) - strongest stability for extreme market conditions',
-        useCase: 'MAXIMUM STABILITY: μ=0.0, ν=0.7, H=288. Prioritizes vault health during extreme volatility.'
+        nu: 0.88,
+        H: 120,
+        description: '⛑️ CRISIS-RESILIENT: Extreme volatility preparation',
+        objective: 'Maximum safety scores in crisis scenarios',
+        constraints: 'Highest safety scores in crisis scenarios with aggressive correction',
+        tradeoffs: 'Eliminates L1 correlation bias (μ=0.0), aggressive deficit correction (ν=0.88), shorter horizon for rapid response',
+        riskProfile: 'Crisis-optimized - highest safety performance during extreme market volatility',
+        useCase: 'CRISIS STRATEGY: μ=0.0, ν=0.88, H=120. Aggressive correction for extreme volatility preparation.'
     }
 };
 

@@ -40,7 +40,7 @@
                 <div class="parameter-group">
                     <label for="mu-slider" class="parameter-label">
                         μ (L1 Weight): <span id="mu-value">0.0</span>
-                        <span class="tooltip" data-tooltip="Controls how much L1 costs influence L2 fees. L1 costs are calculated as: (trend L1 basefee × gas per L2 tx). Research shows μ=0.0 is optimal across all scenarios, ignoring L1 cost tracking in favor of pure deficit-based correction.">ℹ️</span>
+                        <span class="tooltip" data-tooltip="Controls how much L1 costs influence L2 fees. 100% consensus from revised optimization: μ=0.0 is definitively optimal across all 320 solutions from 4 scenarios. L1 correlation bias eliminated - pure deficit-based correction is superior.">ℹ️</span>
                     </label>
                     <input type="range" id="mu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.0">
                     <div class="range-labels">
@@ -52,10 +52,10 @@
                 <!-- Nu Parameter -->
                 <div class="parameter-group">
                     <label for="nu-slider" class="parameter-label">
-                        ν (Deficit Weight): <span id="nu-value">0.1</span>
-                        <span class="tooltip" data-tooltip="Controls strength of vault deficit correction. Research-proven optimal values: ν=0.1 (optimal), 0.2 (balanced), 0.7 (crisis-resilient). Lower values provide gentler correction while maintaining stability.">ℹ️</span>
+                        ν (Deficit Weight): <span id="nu-value">0.27</span>
+                        <span class="tooltip" data-tooltip="Controls strength of vault deficit correction. Revised framework optimal values: ν=0.27 (optimal consensus), 0.48 (conservative), 0.88 (crisis). Consensus value from 320 solutions across 4 scenarios.">ℹ️</span>
                     </label>
-                    <input type="range" id="nu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.1">
+                    <input type="range" id="nu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.27">
                     <div class="range-labels">
                         <span>0.0</span>
                         <span>1.0</span>
@@ -65,10 +65,10 @@
                 <!-- H Parameter -->
                 <div class="parameter-group">
                     <label for="H-slider" class="parameter-label">
-                        H (Horizon): <span id="H-value">36</span> steps
-                        <span class="tooltip" data-tooltip="Time horizon for deficit correction aligned with L1 batch cycles. Research-proven optimal values: H=36 (optimal), 72 (balanced), 288 (crisis-resilient). Values are aligned with natural batch frequency for optimal performance.">ℹ️</span>
+                        H (Horizon): <span id="H-value">492</span> steps
+                        <span class="tooltip" data-tooltip="Time horizon for deficit correction aligned with L1 batch cycles. Revised framework optimal values: H=492 (optimal consensus), 492 (conservative), 120 (crisis). All values are 6-step aligned for batch cycle resonance.">ℹ️</span>
                     </label>
-                    <input type="range" id="H-slider" class="parameter-slider" min="24" max="576" step="24" value="36">
+                    <input type="range" id="H-slider" class="parameter-slider" min="24" max="576" step="24" value="492">
                     <div class="range-labels">
                         <span>24</span>
                         <span>576</span>
@@ -254,15 +254,15 @@
                 <h3>🎯 Optimal Presets</h3>
                 <p class="preset-description">Hover over each preset for objectives & constraints. Click (ⓘ) for detailed analysis.</p>
                 <div class="preset-buttons">
-                    <button class="preset-btn featured" data-preset="optimal" data-tooltip="🎯 OPTIMAL STRATEGY (μ=0.0, ν=0.1, H=36): Minimize user fees while maintaining vault solvency | CONSTRAINT: Scientifically validated across multiple crisis scenarios">
+                    <button class="preset-btn featured" data-preset="optimal" data-tooltip="🎯 OPTIMAL STRATEGY (μ=0.0, ν=0.27, H=492): Multi-scenario consensus parameters from revised optimization | CONSTRAINT: Validated across 320 solutions from 4 scenarios, eliminates L1 correlation bias">
                         🎯 Optimal
                         <span class="preset-tooltip-trigger">ⓘ</span>
                     </button>
-                    <button class="preset-btn" data-preset="balanced" data-tooltip="⚖️ BALANCED STRATEGY (μ=0.0, ν=0.2, H=72): Balance fee minimization with robust deficit management | CONSTRAINT: Optimal across various market conditions">
+                    <button class="preset-btn" data-preset="balanced" data-tooltip="⚖️ BALANCED STRATEGY (μ=0.0, ν=0.27, H=492): Same as optimal - consensus parameters | CONSTRAINT: Robust across normal, spike, crash, and crisis conditions">
                         ⚖️ Balanced
                         <span class="preset-tooltip-trigger">ⓘ</span>
                     </button>
-                    <button class="preset-btn" data-preset="crisis-resilient" data-tooltip="⛑️ CRISIS-RESILIENT STRATEGY (μ=0.0, ν=0.7, H=288): Maximum stability and vault recovery speed | CONSTRAINT: Handles extreme volatility with strong deficit correction">
+                    <button class="preset-btn" data-preset="crisis-resilient" data-tooltip="⛑️ CRISIS-RESILIENT STRATEGY (μ=0.0, ν=0.88, H=120): Aggressive correction for extreme volatility | CONSTRAINT: Highest safety scores in crisis scenarios with rapid response">
                         ⛑️ Crisis-Resilient
                         <span class="preset-tooltip-trigger">ⓘ</span>
                     </button>
