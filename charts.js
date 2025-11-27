@@ -19,7 +19,11 @@ class ChartManager {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
+        // Use Taiko (L2) step timing: 2s per step
+        const timeLabels = data.map((d, i) => {
+            const seconds = (typeof d.l2ElapsedSeconds === 'number') ? d.l2ElapsedSeconds : (i * 2);
+            return `${(seconds / 3600).toFixed(2)}h`;
+        });
         // Convert from per-transaction ETH to per-gas gwei: (ETH * 1e9) / gasPerTx
         const feeData = data.map(d => (d.estimatedFee * 1e9) / (gasPerTx || 200)); // Default gasPerTx = 200 (corrected from bug analysis)
 
@@ -124,7 +128,11 @@ class ChartManager {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
+        // Use Taiko (L2) step timing: 2s per step
+        const timeLabels = data.map((d, i) => {
+            const seconds = (typeof d.l2ElapsedSeconds === 'number') ? d.l2ElapsedSeconds : (i * 2);
+            return `${(seconds / 3600).toFixed(2)}h`;
+        });
         const vaultData = data.map(d => d.vaultBalance);
 
         this.charts[canvasId] = new Chart(ctx, {
@@ -246,7 +254,11 @@ class ChartManager {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
+        // Use L1 timing: real timestamps for historical data, 12s spacing for simulated L1
+        const timeLabels = data.map((d, i) => {
+            const seconds = (typeof d.l1ElapsedSeconds === 'number') ? d.l1ElapsedSeconds : (i * 12);
+            return `${(seconds / 3600).toFixed(2)}h`;
+        });
         const l1Data = data.map(d => d.l1Basefee / 1e9); // Convert to gwei
 
         this.charts[canvasId] = new Chart(ctx, {
@@ -541,7 +553,11 @@ class ChartManager {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
+        // Use L1 timing: real timestamps for historical data, 12s spacing for simulated L1
+        const timeLabels = data.map((d, i) => {
+            const seconds = (typeof d.l1ElapsedSeconds === 'number') ? d.l1ElapsedSeconds : (i * 12);
+            return `${(seconds / 3600).toFixed(2)}h`;
+        });
         const spotBasefeeData = data.map(d => d.l1Basefee / 1e9); // Convert wei to gwei
         const trendBasefeeData = data.map(d => d.l1TrendBasefee / 1e9); // Convert wei to gwei
 
@@ -665,7 +681,11 @@ class ChartManager {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
+        // Use L2 timing for fee/deficit composition (Taiko steps = 2s)
+        const timeLabels = data.map((d, i) => {
+            const seconds = (typeof d.l2ElapsedSeconds === 'number') ? d.l2ElapsedSeconds : (i * 2);
+            return `${(seconds / 3600).toFixed(2)}h`;
+        });
 
         // Calculate L1 and deficit components
         const l1Components = data.map(d => {

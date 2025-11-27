@@ -303,16 +303,20 @@ class TaikoFeeSimulator:
         noise_factor = np.random.normal(1.0, 0.1)  # 10% noise
         return max(volume * noise_factor, 0)
 
-    def should_batch_occur(self) -> bool:
-        """Determine if an L1 batch should occur this time step."""
-        return np.random.random() < self.params.batch_frequency
-
     def calculate_l1_batch_cost(self, l1_basefee: float) -> float:
         """Calculate cost of an L1 batch."""
         return l1_basefee * self.params.gas_per_batch / 1e18  # Convert to ETH
 
     def step(self, l1_basefee: float):
-        """Execute one simulation time step."""
+        """
+        Execute one simulation time step with realistic lumpy cash flow timing.
+
+        CRITICAL: This implements the timing fix that creates realistic vault economics:
+        - Fee collection: Every 2s (every Taiko L2 block)
+        - L1 batch cost payment: Every 12s (every 6 Taiko steps, when t % 6 === 0)
+
+        This creates natural saw-tooth deficit patterns that match real protocol economics.
+        """
         # Estimate L1 cost per transaction
         l1_cost_estimate = self.estimate_l1_cost_per_tx(l1_basefee)
 
@@ -322,12 +326,13 @@ class TaikoFeeSimulator:
         # Calculate transaction volume (with fee elasticity)
         tx_volume = self.calculate_transaction_volume(estimated_fee)
 
-        # Collect fees
+        # ALWAYS collect fees (every 2s Taiko L2 block)
         total_fees = estimated_fee * tx_volume
         self.vault.collect_fees(total_fees)
 
-        # Handle L1 batching costs
-        batch_occurred = self.should_batch_occur()
+        # ONLY pay L1 costs when batch is submitted (every 12s = every 6 Taiko steps)
+        # This matches the JavaScript implementation: isL1BatchStep = (t % 6 === 0)
+        batch_occurred = (self.time_step % 6 == 0)
         l1_cost_paid = 0
         if batch_occurred:
             l1_cost_paid = self.calculate_l1_batch_cost(l1_basefee)

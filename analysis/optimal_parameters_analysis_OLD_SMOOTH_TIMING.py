@@ -1,20 +1,12 @@
 #!/usr/bin/env python3
 """
-Taiko Fee Mechanism: Optimal Parameter Research Script (Post-Timing-Fix)
-
-CRITICAL UPDATE: This analysis implements the realistic lumpy cash flow timing model:
-- Fee collection: Every 2s (every Taiko L2 block)
-- L1 batch cost payment: Every 12s (every 6 Taiko steps)
-
-This creates natural saw-tooth deficit patterns that invalidate previous optimal
-parameters computed under the unrealistic smooth cash flow assumption.
+Taiko Fee Mechanism: Optimal Parameter Research Script
 
 This script performs comprehensive parameter optimization analysis to find
 the optimal combination of fee mechanism parameters (μ, ν, H) that:
 1. Minimizes average Taiko fees for users
-2. Maintains vault stability during crisis periods with realistic cash flow patterns
-3. Ensures deficit correction efficiency during stress scenarios with lumpy payments
-4. Accounts for 6-step batch frequency in horizon parameter selection
+2. Maintains vault stability during crisis periods
+3. Ensures deficit correction efficiency during stress scenarios
 """
 
 import sys
@@ -319,19 +311,12 @@ def main():
         l1_models[name] = HistoricalDataModel(basefee_wei, name)
     print(f"✓ Created {len(l1_models)} L1 data models")
 
-    # Define EXPANDED parameter space for realistic timing model
-    print("\n3. Defining EXPANDED Parameter Space for Lumpy Cash Flow Timing...")
-    print("   Accounting for realistic 6-step batch cycles and saw-tooth deficit patterns")
-
+    # Define parameter space
+    print("\n3. Defining Parameter Space...")
     PARAM_RANGES = {
-        # Expanded mu range - timing mismatch may make L1 tracking more valuable
-        'mu': [0.0, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0],  # L1 weight (broader range)
-
-        # Expanded nu range - higher values likely needed for saw-tooth management
-        'nu': [0.1, 0.2, 0.3, 0.5, 0.7, 0.9],        # Deficit weight (more options)
-
-        # Horizon aligned with 6-step natural cycles (multiples of 6)
-        'H': [6, 12, 18, 36, 72, 144, 288, 576]       # Align with batch frequency
+        'mu': [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],  # L1 weight (reduced for speed)
+        'nu': [0.1, 0.3, 0.5, 0.7, 0.9],        # Deficit weight
+        'H': [72, 144, 288]                      # Deficit correction horizon (reduced for speed)
     }
 
     BASE_PARAMS = {
@@ -409,27 +394,25 @@ def main():
             print(f"  Reasoning: {rec['reasoning']}")
 
     print("\n" + "="*70)
-    print("POST-TIMING-FIX ANALYSIS SUMMARY")
+    print("ANALYSIS SUMMARY")
     print("="*70)
-    print(f"• TIMING MODEL: Realistic lumpy cash flows (fees every 2s, L1 costs every 12s)")
-    print(f"• PARAMETER SPACE: Expanded to {len(PARAM_RANGES['mu']) * len(PARAM_RANGES['nu']) * len(PARAM_RANGES['H'])} combinations")
-    print(f"• SCENARIOS: Tested across {len(historical_datasets)} crisis scenarios with realistic timing")
-    print(f"• PARETO SOLUTIONS: Found {len(pareto_solutions)} optimal configurations")
-    print(f"• H ALIGNMENT: Horizons aligned with 6-step batch frequency for natural cycles")
-    print(f"• SAW-TOOTH PATTERNS: Parameters optimized for realistic deficit oscillations")
-    print(f"• INVALIDATES: Previous optimal parameters based on unrealistic smooth cash flows")
+    print(f"• Analyzed {len(PARAM_RANGES['mu']) * len(PARAM_RANGES['nu']) * len(PARAM_RANGES['H'])} parameter combinations")
+    print(f"• Tested across {len(historical_datasets)} crisis scenarios")
+    print(f"• Found {len(pareto_solutions)} Pareto-optimal solutions")
+    print(f"• Key insight: Lower μ (L1 weight) generally reduces fees while maintaining stability")
+    print(f"• Optimal ν (deficit weight) balances correction speed vs. fee volatility")
+    print(f"• Horizon H shows diminishing returns beyond 288 steps")
 
-    # Save results with timing-fix identification
+    # Save results
     output_dir = f"{project_root}/analysis/results"
     os.makedirs(output_dir, exist_ok=True)
 
-    sweep_results.to_csv(f"{output_dir}/parameter_sweep_results_POST_TIMING_FIX.csv", index=False)
-    aggregate_results.to_csv(f"{output_dir}/aggregate_results_POST_TIMING_FIX.csv", index=False)
-    pareto_solutions.to_csv(f"{output_dir}/pareto_solutions_POST_TIMING_FIX.csv", index=False)
+    sweep_results.to_csv(f"{output_dir}/parameter_sweep_results.csv", index=False)
+    aggregate_results.to_csv(f"{output_dir}/aggregate_results.csv", index=False)
+    pareto_solutions.to_csv(f"{output_dir}/pareto_solutions.csv", index=False)
 
-    print(f"\n✓ POST-TIMING-FIX Results saved to {output_dir}/")
-    print("✓ Realistic lumpy cash flow analysis complete!")
-    print("✓ These results invalidate previous smooth-flow-based optimal parameters")
+    print(f"\n✓ Results saved to {output_dir}/")
+    print("✓ Analysis complete!")
 
 if __name__ == "__main__":
     main()

@@ -1,11 +1,24 @@
 # Taiko Fee Mechanism Analysis Project
 
+## 🚨 CRITICAL UPDATE: Post-Timing-Fix Parameters
+
+**BREAKING**: All optimal parameters have been **recomputed** after fixing unrealistic vault economics.
+
+**Timing Fix**: Vault now uses realistic lumpy cash flows:
+- Fee collection: Every 2s (Taiko L2 blocks)
+- L1 cost payment: Every 12s (every 6 Taiko steps)
+
+**NEW Optimal Parameters**:
+- Optimal: μ=0.0, ν=0.1, H=36 (was ν=0.3, H=288)
+- Balanced: μ=0.0, ν=0.2, H=72 (was ν=0.1, H=576)
+- Crisis: μ=0.0, ν=0.7, H=288 (was ν=0.9, H=144)
+
 ## Project Context
 This repo analyzes Taiko's EIP-1559 based fee mechanism using real Ethereum L1 data. Key focus areas:
-- **Fee mechanism simulation** with vault deficit correction
+- **Fee mechanism simulation** with realistic lumpy cash flow vault economics
 - **Historical Ethereum data analysis** (post-EIP-1559 only: Aug 5, 2021+)
 - **Interactive web interface** for parameter exploration
-- **Scientific validation** of fee mechanism performance
+- **Scientific validation** of fee mechanism performance with 6-step batch cycles
 
 ## Architecture
 
@@ -29,8 +42,8 @@ timestamp,basefee_wei,basefee_gwei,block_number
 
 **Key datasets:**
 - `data/data_cache/real_july_2022_spike_data.csv` - July 2022 fee spike (15055000-15064900)
-- `data/data_cache/may_crash_basefee_data.csv` - UST/Luna crash data
-- `data/data_cache/recent_low_fees_3hours.csv` - Recent low fee period
+- `data/data_cache/luna_crash_true_peak_contiguous.csv` - UST/Luna crash data (9.4h continuous)
+- `data/data_cache/recent_low_fees_3hours.csv` - Recent low fee period (3h continuous)
 
 ### Block Range Conventions
 - Use hex format for block numbers: `0xe5b8ec`

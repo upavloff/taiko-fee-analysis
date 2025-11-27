@@ -40,7 +40,7 @@
                 <div class="parameter-group">
                     <label for="mu-slider" class="parameter-label">
                         μ (L1 Weight): <span id="mu-value">0.0</span>
-                        <span class="tooltip" data-tooltip="Controls how much L1 costs influence L2 fees. L1 costs are calculated as: (trend L1 basefee × gas per L2 tx). Gas per tx = batch gas cost ÷ transactions per batch. Higher μ values make L2 fees track L1 conditions more closely.">ℹ️</span>
+                        <span class="tooltip" data-tooltip="Controls how much L1 costs influence L2 fees. L1 costs are calculated as: (trend L1 basefee × gas per L2 tx). With realistic lumpy timing (L1 costs paid every 12s), μ=0.0 remains optimal across all scenarios despite timing mismatch.">ℹ️</span>
                     </label>
                     <input type="range" id="mu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.0">
                     <div class="range-labels">
@@ -53,7 +53,7 @@
                 <div class="parameter-group">
                     <label for="nu-slider" class="parameter-label">
                         ν (Deficit Weight): <span id="nu-value">0.3</span>
-                        <span class="tooltip" data-tooltip="Controls strength of vault deficit correction. Higher values = faster correction. 0 = no deficit correction, 1 = maximum correction.">ℹ️</span>
+                        <span class="tooltip" data-tooltip="Controls strength of vault deficit correction for saw-tooth deficit patterns (realistic lumpy cash flows). POST-TIMING-FIX optimal: ν=0.1 (optimal), 0.2 (balanced), 0.7 (crisis). Lower values optimal for lumpy flows vs. smooth flows.">ℹ️</span>
                     </label>
                     <input type="range" id="nu-slider" class="parameter-slider" min="0" max="1" step="0.05" value="0.3">
                     <div class="range-labels">
@@ -66,7 +66,7 @@
                 <div class="parameter-group">
                     <label for="H-slider" class="parameter-label">
                         H (Horizon): <span id="H-value">288</span> steps
-                        <span class="tooltip" data-tooltip="Time horizon for L1 cost prediction. 144 steps ≈ 1 day.">ℹ️</span>
+                        <span class="tooltip" data-tooltip="Time horizon for deficit correction aligned with 6-step L1 batch cycles (12s). POST-TIMING-FIX optimal: H=36 (optimal), 72 (balanced), 288 (crisis). Must be multiples of 6 for natural batch frequency alignment.">ℹ️</span>
                     </label>
                     <input type="range" id="H-slider" class="parameter-slider" min="24" max="576" step="24" value="288">
                     <div class="range-labels">
@@ -161,8 +161,8 @@
                                 <label class="period-option">
                                     <input type="radio" name="historical-period" value="may2022">
                                     <div class="period-content">
-                                        <div class="period-title">May 2022 Crash</div>
-                                        <div class="period-description">UST/Luna collapse (53-533 gwei)</div>
+                                        <div class="period-title">May 2022 Luna Crash</div>
+                                        <div class="period-description">Peak: 1,352 gwei on May 12 (8h window)</div>
                                     </div>
                                 </label>
                                 <label class="period-option">
@@ -254,15 +254,15 @@
                 <h3>🎯 Optimal Presets</h3>
                 <p class="preset-description">Hover over each preset for objectives & constraints. Click (ⓘ) for detailed analysis.</p>
                 <div class="preset-buttons">
-                    <button class="preset-btn featured" data-preset="optimal" data-tooltip="🎯 OBJECTIVE: Minimize user fees while maintaining vault solvency | CONSTRAINT: Vault must remain funded (time underfunded < 1%)">
+                    <button class="preset-btn featured" data-preset="optimal" data-tooltip="🎯 POST-TIMING-FIX OPTIMAL (μ=0.0, ν=0.1, H=36): Minimize user fees with realistic lumpy cash flows | CONSTRAINT: Optimized for 6-step batch cycles and saw-tooth deficit patterns">
                         🎯 Optimal
                         <span class="preset-tooltip-trigger">ⓘ</span>
                     </button>
-                    <button class="preset-btn" data-preset="balanced" data-tooltip="⚖️ OBJECTIVE: Balance fee minimization with risk management | CONSTRAINT: Maintain vault stability with low volatility tolerance">
+                    <button class="preset-btn" data-preset="balanced" data-tooltip="⚖️ POST-TIMING-FIX BALANCED (μ=0.0, ν=0.2, H=72): Balance fee minimization with robust saw-tooth deficit management | CONSTRAINT: Designed for realistic 6-step L1 batch frequency">
                         ⚖️ Balanced
                         <span class="preset-tooltip-trigger">ⓘ</span>
                     </button>
-                    <button class="preset-btn" data-preset="crisis-resilient" data-tooltip="⛑️ OBJECTIVE: Maximize protocol robustness and vault recovery speed | CONSTRAINT: Vault must recover quickly from any deficit state">
+                    <button class="preset-btn" data-preset="crisis-resilient" data-tooltip="⛑️ POST-TIMING-FIX CRISIS-RESILIENT (μ=0.0, ν=0.7, H=288): Maximum stability for realistic lumpy cash flows | CONSTRAINT: Handles extreme volatility with saw-tooth deficit dynamics">
                         ⛑️ Crisis-Resilient
                         <span class="preset-tooltip-trigger">ⓘ</span>
                     </button>
