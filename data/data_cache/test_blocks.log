@@ -1,0 +1,5 @@
+2025-11-26 16:23:55,240 - INFO - Starting to fetch blocks 15055000 to 15055019
+2025-11-26 16:23:55,240 - INFO - Total blocks to fetch: 20
+2025-11-26 16:23:55,241 - INFO - Output file: /Users/ulyssepavloff/Desktop/Nethermind/taiko-fee-analysis/data/data_cache/test_blocks.csv
+2025-11-26 16:24:00,881 - INFO - Successfully fetched all blocks from 15055000 to 15055019
+2025-11-26 16:24:00,881 - INFO - Output saved to: /Users/ulyssepavloff/Desktop/Nethermind/taiko-fee-analysis/data/data_cache/test_blocks.csv

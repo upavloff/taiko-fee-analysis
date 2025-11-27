@@ -195,15 +195,31 @@ ehthumbs.db
 Thumbs.db
 
 # Data files (commonly used in analysis projects)
-*.csv
-*.json
+# Allow tracked data files for this project
 *.xlsx
 *.xls
 *.parquet
-data/
-datasets/
 raw_data/
 processed_data/
+
+# Temporary and debug files
+debug_*.html
+test_*.html
+*_BACKUP_*
+*_TEMP_*
+DEBUG_*.js
+TEST_*.js
+QUICK_*.js
+EMERGENCY_*.js
+FINAL_*.js
+ULTIMATE_*.js
+CORRECTED_*.js
+COMPREHENSIVE_*.js
+VERIFY_*.js
+INVESTIGATE_*.js
+
+# Archive directory (historical files)
+archive/
 
 # Analysis outputs
 outputs/

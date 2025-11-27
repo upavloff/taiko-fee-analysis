@@ -1,0 +1,9 @@
+{
+  "last_completed_block": 17194500,
+  "total_blocks": 40001,
+  "timestamp": "2025-11-26T21:26:29.752140",
+  "output_file": "/Users/ulyssepavloff/Desktop/Nethermind/taiko-fee-analysis/data/data_cache/may_2023_pepe_crisis_data.csv",
+  "max_basefee_gwei": 184.30827365,
+  "max_basefee_block": 17191608,
+  "total_high_fee_blocks": 2034
+}
