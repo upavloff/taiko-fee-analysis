@@ -251,22 +251,18 @@
 
             <!-- Quick Presets -->
             <div class="preset-section">
-                <h3>🎯 Research-Validated Presets</h3>
-                <p class="preset-description">Research-proven strategies: <strong>Optimal</strong> (μ=0.0, ν=0.3, H=288) minimizes fees with constraints. <strong>Balanced</strong> (ν=0.1, H=576) balances fees with stability. <strong>Cheapest</strong> (ν=0.0) has vault risks.</p>
+                <h3>🎯 Optimal Presets</h3>
+                <p class="preset-description">Hover over each preset for objectives & constraints. Click (ⓘ) for detailed analysis.</p>
                 <div class="preset-buttons">
-                    <button class="preset-btn featured" data-preset="optimal">
+                    <button class="preset-btn featured" data-preset="optimal" data-tooltip="🎯 OBJECTIVE: Minimize user fees while maintaining vault solvency | CONSTRAINT: Vault must remain funded (time underfunded < 1%)">
                         🎯 Optimal
                         <span class="preset-tooltip-trigger">ⓘ</span>
                     </button>
-                    <button class="preset-btn" data-preset="cheapest-fees">
-                        💰 Cheapest Fees
-                        <span class="preset-tooltip-trigger">ⓘ</span>
-                    </button>
-                    <button class="preset-btn" data-preset="balanced">
+                    <button class="preset-btn" data-preset="balanced" data-tooltip="⚖️ OBJECTIVE: Balance fee minimization with risk management | CONSTRAINT: Maintain vault stability with low volatility tolerance">
                         ⚖️ Balanced
                         <span class="preset-tooltip-trigger">ⓘ</span>
                     </button>
-                    <button class="preset-btn" data-preset="crisis-resilient">
+                    <button class="preset-btn" data-preset="crisis-resilient" data-tooltip="⛑️ OBJECTIVE: Maximize protocol robustness and vault recovery speed | CONSTRAINT: Vault must recover quickly from any deficit state">
                         ⛑️ Crisis-Resilient
                         <span class="preset-tooltip-trigger">ⓘ</span>
                     </button>
@@ -348,7 +344,7 @@
                 <h3>Performance Metrics</h3>
                 <div class="metrics-grid">
                     <div class="metric-card" id="avg-fee-card">
-                        <div class="metric-label">Average Taiko Estimated Fee</div>
+                        <div class="metric-label">Average Taiko Estimated Fee per Gas</div>
                         <div class="metric-value" id="avg-fee-value">-</div>
                         <div class="metric-unit">gwei</div>
                         <div class="metric-status" id="avg-fee-status"></div>
@@ -378,7 +374,7 @@
                     <h4>Metric Interpretation</h4>
                     <div class="explanation-grid">
                         <div class="explanation-item">
-                            <strong>Average Taiko Estimated Fee:</strong> Mean transaction cost over simulation period. Lower values reduce user burden but must cover L1 operational costs.
+                            <strong>Average Taiko Estimated Fee per Gas:</strong> Mean gas cost over simulation period. Lower values reduce user burden but must cover L1 operational costs. Comparable to L1 basefee.
                         </div>
                         <div class="explanation-item">
                             <strong>Taiko Estimated Fee Variability (CV):</strong> Coefficient of variation measuring fee stability.

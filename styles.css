@@ -131,6 +131,7 @@ body {
     line-height: 1.3;
 }
 
+
 .preset-buttons {
     display: grid;
     grid-template-columns: 1fr;
@@ -1001,24 +1002,43 @@ html {
 }
 
 .preset-tooltip-trigger {
-    opacity: 0.7;
-    font-size: 12px;
-    color: #666;
+    opacity: 1;
+    font-size: 14px;
+    color: #3182ce;
     margin-left: 8px;
-    transition: opacity 0.2s ease;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 50%;
+    background: rgba(49, 130, 206, 0.1);
+    border: 1px solid rgba(49, 130, 206, 0.2);
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
 }
 
 .preset-tooltip-trigger:hover {
     opacity: 1;
-    color: #333;
+    color: #2c5282;
+    background: rgba(49, 130, 206, 0.2);
+    border-color: rgba(49, 130, 206, 0.4);
+    transform: scale(1.1);
 }
 
 .preset-btn.featured .preset-tooltip-trigger {
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .preset-btn.featured .preset-tooltip-trigger:hover {
     color: white;
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
 }
 
 .preset-tooltip-modal {
@@ -1212,5 +1232,66 @@ html {
     margin: 8px 0;
     color: #234e52;
     font-size: 12px;
+    line-height: 1.4;
+}
+
+/* New objective and constraints styles */
+.preset-objective, .preset-constraints, .preset-risk {
+    margin-bottom: 12px;
+}
+
+.preset-objective h6, .preset-constraints h6, .preset-risk h6 {
+    margin: 0 0 4px 0;
+    color: #2d3748;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.preset-objective p, .preset-constraints p, .preset-risk p {
+    margin: 0;
+    color: #4a5568;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.preset-tradeoffs {
+    background: #fff8e1;
+    border: 1px solid #ffd54f;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+}
+
+.preset-tradeoffs > p {
+    color: #e65100;
+    font-size: 12px;
+    line-height: 1.4;
+    margin: 0 0 12px 0;
+    font-weight: 500;
+}
+
+.preset-tradeoffs h6 {
+    margin: 12px 0 6px 0;
+    color: #e65100;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Research methodology styles */
+.preset-methodology, .preset-data-source, .preset-research-status {
+    margin-bottom: 12px;
+}
+
+.preset-methodology h6, .preset-data-source h6, .preset-research-status h6 {
+    margin: 0 0 4px 0;
+    color: #2d3748;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.preset-methodology p, .preset-data-source p, .preset-research-status p {
+    margin: 0;
+    color: #4a5568;
+    font-size: 11px;
     line-height: 1.4;
 }

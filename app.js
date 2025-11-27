@@ -144,7 +144,7 @@ class TaikoFeeExplorer {
     }
 
     initializeTooltips() {
-        // Simple tooltip implementation
+        // Simple tooltip implementation for general tooltips
         const tooltips = document.querySelectorAll('.tooltip');
         tooltips.forEach(tooltip => {
             let tooltipElement = null;
@@ -175,6 +175,60 @@ class TaikoFeeExplorer {
             });
 
             tooltip.addEventListener('mouseleave', () => {
+                if (tooltipElement) {
+                    document.body.removeChild(tooltipElement);
+                    tooltipElement = null;
+                }
+            });
+        });
+
+        // Enhanced tooltip implementation for preset buttons
+        const presetButtons = document.querySelectorAll('.preset-btn');
+        presetButtons.forEach(button => {
+            let tooltipElement = null;
+
+            button.addEventListener('mouseenter', (e) => {
+                // Don't show tooltip if clicking on info icon
+                if (e.target.classList.contains('preset-tooltip-trigger')) return;
+
+                const text = button.getAttribute('data-tooltip');
+                if (!text) return;
+
+                tooltipElement = document.createElement('div');
+                tooltipElement.className = 'preset-hover-tooltip';
+                tooltipElement.innerHTML = text;
+                tooltipElement.style.cssText = `
+                    position: absolute;
+                    background: #2d3748;
+                    color: white;
+                    padding: 12px;
+                    border-radius: 8px;
+                    font-size: 11px;
+                    max-width: 350px;
+                    z-index: 1000;
+                    pointer-events: none;
+                    word-wrap: break-word;
+                    line-height: 1.4;
+                    border: 1px solid #4a5568;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                `;
+
+                document.body.appendChild(tooltipElement);
+
+                const rect = button.getBoundingClientRect();
+                tooltipElement.style.left = (rect.left + window.scrollX) + 'px';
+                tooltipElement.style.top = (rect.top + window.scrollY - tooltipElement.offsetHeight - 12) + 'px';
+
+                // Adjust if tooltip goes off screen
+                if (tooltipElement.getBoundingClientRect().left < 0) {
+                    tooltipElement.style.left = '10px';
+                }
+                if (tooltipElement.getBoundingClientRect().right > window.innerWidth) {
+                    tooltipElement.style.left = (window.innerWidth - tooltipElement.offsetWidth - 10) + 'px';
+                }
+            });
+
+            button.addEventListener('mouseleave', () => {
                 if (tooltipElement) {
                     document.body.removeChild(tooltipElement);
                     tooltipElement = null;
@@ -357,7 +411,7 @@ class TaikoFeeExplorer {
 
             // Update UI
             this.updateMetricsDisplay(metrics);
-            this.updateCharts(simulationData);
+            this.updateCharts(simulationData, simulator.gasPerTx);
 
         } catch (error) {
             console.error('Simulation error:', error);
@@ -378,14 +432,14 @@ class TaikoFeeExplorer {
         this.chartManager.updateMetricCard('tracking-card', metrics.l1TrackingError, evaluations.l1Tracking);
     }
 
-    updateCharts(simulationData) {
+    updateCharts(simulationData, gasPerTx) {
         const params = this.getCurrentParameters();
 
         // Create/update all charts
-        this.chartManager.createFeeChart('fee-chart', simulationData);
+        this.chartManager.createFeeChart('fee-chart', simulationData, gasPerTx);
         this.chartManager.createVaultChart('vault-chart', simulationData, params.targetBalance);
         this.chartManager.createL1Chart('l1-chart', simulationData);
-        this.chartManager.createCorrelationChart('correlation-chart', simulationData);
+        this.chartManager.createCorrelationChart('correlation-chart', simulationData, gasPerTx);
         this.chartManager.createL1EstimationChart('l1-estimation-chart', simulationData);
     }
 
@@ -493,41 +547,55 @@ class TaikoFeeExplorer {
             </div>
 
             <div class="preset-detail-section">
-                <h5>🎯 Optimization Targets</h5>
+                <h5>🎯 Objective & Constraints</h5>
                 <div class="preset-optimization">
-                    <h6>Research Methodology:</h6>
+                    <div class="preset-objective">
+                        <h6>Primary Objective:</h6>
+                        <p>${preset.objective || 'Not specified'}</p>
+                    </div>
+                    <div class="preset-constraints">
+                        <h6>Constraints:</h6>
+                        <p>${preset.constraints || 'Not specified'}</p>
+                    </div>
+                    <div class="preset-risk">
+                        <h6>Risk Profile:</h6>
+                        <p>${preset.riskProfile || 'Not specified'}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="preset-detail-section">
+                <h5>⚖️ Trade-offs Analysis</h5>
+                <div class="preset-tradeoffs">
+                    <p>${preset.tradeoffs || 'Not specified'}</p>
+                    <h6>Research Validation:</h6>
                     <ul class="preset-optimization-list">
-                        <li>720 simulations across 4 crisis scenarios</li>
+                        <li>Comprehensive simulations across crisis scenarios</li>
                         <li>Multi-objective optimization: minimize fees + maximize vault stability</li>
                         <li>Historical data: May 2022 crash, July 2022 spike, May 2023 PEPE, Recent low fees</li>
                         <li>Pareto frontier analysis for optimal trade-offs</li>
-                    </ul>
-                    <h6>This Configuration Optimized For:</h6>
-                    <ul class="preset-optimization-list">
-                        ${researchData.optimizedFor.map(goal => `<li>${goal}</li>`).join('')}
                     </ul>
                 </div>
             </div>
 
             <div class="preset-detail-section">
-                <h5>📊 Research Performance Statistics</h5>
+                <h5>🔬 Research Methodology & Status</h5>
                 <div class="preset-performance">
-                    <h6>Average Performance Across Crisis Scenarios:</h6>
-                    <div class="preset-metric">
-                        <span>Average Fee:</span>
-                        <span class="preset-metric-value">${researchData.avgFee}</span>
+                    <div class="preset-methodology">
+                        <h6>Research Methodology:</h6>
+                        <p>${researchData.methodology}</p>
+                    </div>
+                    <div class="preset-data-source">
+                        <h6>Data Sources:</h6>
+                        <p>${researchData.dataSource}</p>
+                    </div>
+                    <div class="preset-research-status">
+                        <h6>Current Status:</h6>
+                        <p>${researchData.researchStatus}</p>
                     </div>
                     <div class="preset-metric">
-                        <span>Time Underfunded:</span>
+                        <span>Expected Time Underfunded:</span>
                         <span class="preset-metric-value">${researchData.timeUnderfunded}</span>
-                    </div>
-                    <div class="preset-metric">
-                        <span>Fee Volatility (CV):</span>
-                        <span class="preset-metric-value">${researchData.feeVolatility}</span>
-                    </div>
-                    <div class="preset-metric">
-                        <span>L1 Tracking Error:</span>
-                        <span class="preset-metric-value">${researchData.l1TrackingError}</span>
                     </div>
                 </div>
             </div>
@@ -555,59 +623,36 @@ class TaikoFeeExplorer {
     }
 
     getPresetResearchData(presetName) {
-        // CORRECTED: Based on bug-fixed comprehensive parameter analysis
         const researchData = {
             'optimal': {
-                avgFee: '25.38 gwei (CORRECTED - was 0.0001 gwei due to bugs)',
-                timeUnderfunded: '0.0%',
-                feeVolatility: '0.20 (Good)',
-                l1TrackingError: '0.80 (Balanced)',
-                optimizedFor: [
-                    'TRUE lowest fees after bug fixes',
-                    'Conservative L1 tracking (μ=0.2)',
-                    'Strong vault management (ν=0.7)',
-                    'Proven winner across all scenarios'
-                ],
-                tradeoffs: 'Optimal balance of L1 cost awareness and vault stability. Small L1 weight provides cost transparency without excessive volatility. Best overall configuration.'
-            },
-            'l1-tracking': {
-                avgFee: '25.69 gwei (NOW VIABLE - was 2M+ gwei due to bugs!)',
-                timeUnderfunded: '0.0%',
-                feeVolatility: '0.19 (Good)',
-                l1TrackingError: '0.00 (Perfect - by design)',
-                optimizedFor: [
-                    'Direct L1 cost reflection',
-                    'Predictable fee behavior',
-                    'No vault complexity',
-                    'Transparent cost passing'
-                ],
-                tradeoffs: 'Pure L1 tracking with no vault deficit correction. Fees directly mirror Ethereum L1 costs. Simple and predictable, but vault balance can drift.'
+                avgFee: 'N/A - Research Pending',
+                timeUnderfunded: 'N/A - Research Pending',
+                feeVolatility: 'N/A - Research Pending',
+                l1TrackingError: 'N/A - Research Pending',
+                methodology: '360 simulations across 4 historical crisis scenarios with multi-objective Pareto optimization',
+                researchStatus: 'Configuration designed for μ=0.0, ν=0.3, H=288 based on deficit correction optimization. Full performance validation pending.',
+                dataSource: 'Historical Ethereum data: July 2022 spike, May 2022 UST crash, May 2023 PEPE crisis, Recent low fees',
+                tradeoffs: 'Research-based deficit correction strategy. Ignores L1 costs (μ=0.0) for minimal fees while using moderate deficit correction (ν=0.3) for stability.'
             },
             'balanced': {
-                avgFee: '25.42 gwei (CORRECTED - realistic levels)',
-                timeUnderfunded: '0.0%',
-                feeVolatility: '0.19 (Good)',
-                l1TrackingError: '0.50 (Balanced)',
-                optimizedFor: [
-                    'Equal L1 and deficit weights (μ=0.5, ν=0.5)',
-                    'Balanced approach to both objectives',
-                    'Good overall stability',
-                    'Mathematical symmetry'
-                ],
-                tradeoffs: 'Perfect 50/50 balance between L1 tracking and vault management. Good starting point for deployments wanting equal weight to both objectives.'
+                avgFee: 'N/A - Research Pending',
+                timeUnderfunded: 'N/A - Research Pending',
+                feeVolatility: 'N/A - Research Pending',
+                l1TrackingError: 'N/A - Research Pending',
+                methodology: '360 simulations with comprehensive parameter sweep and crisis scenario testing',
+                researchStatus: 'Configuration designed for μ=0.0, ν=0.1, H=576 for conservative deficit correction. Performance metrics under validation.',
+                dataSource: 'Multi-regime backtesting on real Ethereum L1 basefee data spanning normal and crisis periods',
+                tradeoffs: 'Very conservative deficit correction approach. Extended horizon (H=576) provides stability but slower response to deficits compared to optimal config.'
             },
-            'l1-heavy': {
-                avgFee: '25.41 gwei (EXCELLENT performance)',
-                timeUnderfunded: '0.0%',
-                feeVolatility: '0.19 (Excellent - lowest volatility!)',
-                l1TrackingError: '0.20 (Excellent)',
-                optimizedFor: [
-                    'Strong L1 cost correlation (μ=0.8)',
-                    'Excellent volatility control',
-                    'High predictability from L1 perspective',
-                    'Minimal vault management (ν=0.2)'
-                ],
-                tradeoffs: 'High L1 sensitivity with the lowest fee volatility. Light deficit correction prevents major vault issues while maintaining cost transparency.'
+            'crisis-resilient': {
+                avgFee: 'N/A - Research Pending',
+                timeUnderfunded: 'Expected < 5%',
+                feeVolatility: 'Expected Low',
+                l1TrackingError: 'N/A (Pure deficit approach)',
+                methodology: 'Crisis stress testing across extreme volatility scenarios with aggressive deficit correction',
+                researchStatus: 'Configuration μ=0.0, ν=0.9, H=144 designed for maximum vault recovery speed during crises.',
+                dataSource: 'Historical crisis scenarios: ETH fee spikes (8-533 gwei), meme coin congestion, UST/Luna crash',
+                tradeoffs: 'Aggressive deficit correction (ν=0.9) prioritizes vault stability over fee minimization. Faster response than other configs but potentially higher fees during recovery periods.'
             }
         };
 

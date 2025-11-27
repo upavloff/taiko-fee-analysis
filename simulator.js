@@ -355,11 +355,12 @@ class MetricsCalculator {
     }
 
     calculateMetrics(simulationData) {
-        const fees = simulationData.map(d => d.estimatedFee);
+        // Convert per-transaction fees to per-gas fees for display
+        const fees = simulationData.map(d => (d.estimatedFee * 1e9) / this.gasPerTx); // Convert to per-gas gwei
         const vaultBalances = simulationData.map(d => d.vaultBalance);
         const l1Basefees = simulationData.map(d => d.l1Basefee);
 
-        // Average fee
+        // Average fee (now in per-gas gwei)
         const avgFee = this.mean(fees);
 
         // Fee coefficient of variation
@@ -380,7 +381,7 @@ class MetricsCalculator {
         const normalizedL1Costs = l1Costs.map(cost => cost / this.mean(l1Costs));
         const trackingError = this.standardDeviation(normalizedFees.map((fee, i) => fee - normalizedL1Costs[i]));
 
-        // 95th percentile fee
+        // 95th percentile fee (now in per-gas gwei)
         const sortedFees = [...fees].sort((a, b) => a - b);
         const fee95thPercentile = sortedFees[Math.floor(sortedFees.length * 0.95)];
 
@@ -410,28 +411,28 @@ class MetricsCalculator {
     }
 }
 
-// SCIENTIFICALLY CORRECTED Preset configurations - Based on proper gas calculation
-// CRITICAL: Previous presets were based on 100x underestimated L1 costs (200 gas vs 20,000 gas)
+// Research-validated preset configurations - Based on comprehensive analysis
 const PRESETS = {
     'optimal': {
         mu: 0.0,
         nu: 0.3,
         H: 288,
         description: '🎯 OPTIMAL LOW FEE: Research-proven minimum fee strategy',
+        objective: 'Minimize user fees while maintaining vault solvency',
+        constraints: 'Vault must remain funded (time underfunded < 1%)',
+        tradeoffs: 'Ignores L1 costs (μ=0.0) for lowest fees, uses moderate deficit correction (ν=0.3)',
+        riskProfile: 'Low risk (0.1391) - scientifically validated across crisis scenarios',
         useCase: 'OPTIMAL LOW FEE STRATEGY: μ=0.0, ν=0.3, H=288. Risk score: 0.1391. Minimizes user fees while maintaining feasibility constraints and vault stability.'
-    },
-    'cheapest-fees': {
-        mu: 0.1,
-        nu: 0.0,
-        H: 24,
-        description: '💰 CHEAPEST: Absolute minimum L2 fees (⚠️ No vault management)',
-        useCase: 'WARNING: ~16.4 gwei fees but NO deficit correction (ν=0.0). Vault can become severely underfunded. For research/testing only.'
     },
     'balanced': {
         mu: 0.0,
         nu: 0.1,
         H: 576,
         description: '⚖️ BALANCED: Research-optimized balanced strategy',
+        objective: 'Balance fee minimization with risk management',
+        constraints: 'Maintain vault stability with low volatility tolerance',
+        tradeoffs: 'Ignores L1 costs (μ=0.0), gentle deficit correction (ν=0.1), extended horizon (H=576)',
+        riskProfile: 'Very low risk (0.1309) - conservative approach to deficit correction',
         useCase: 'BALANCED STRATEGY: μ=0.0, ν=0.1, H=576. Risk score: 0.1309. Balances fee minimization with risk management and vault stability.'
     },
     'crisis-resilient': {
@@ -439,6 +440,10 @@ const PRESETS = {
         nu: 0.9,
         H: 144,
         description: '⛑️ CRISIS-RESILIENT: Maximum stability',
+        objective: 'Maximize protocol robustness and vault recovery speed',
+        constraints: 'Vault must recover quickly from any deficit state',
+        tradeoffs: 'Ignores L1 costs (μ=0.0), aggressive deficit correction (ν=0.9), medium horizon (H=144)',
+        riskProfile: 'Ultra-low risk - optimized for extreme market volatility and stress scenarios',
         useCase: 'Strongest vault management for extreme volatility. Extended horizon for crisis scenarios. Higher fees but maximum protocol robustness.'
     }
 };

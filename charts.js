@@ -12,22 +12,23 @@ class ChartManager {
         };
     }
 
-    createFeeChart(canvasId, data) {
+    createFeeChart(canvasId, data, gasPerTx) {
         const ctx = document.getElementById(canvasId).getContext('2d');
 
         if (this.charts[canvasId]) {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 12 / 3600).toFixed(1)}h`);
-        const feeData = data.map(d => d.estimatedFee * 1e9); // Convert ETH to gwei
+        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
+        // Convert from per-transaction ETH to per-gas gwei: (ETH * 1e9) / gasPerTx
+        const feeData = data.map(d => (d.estimatedFee * 1e9) / (gasPerTx || 2000)); // Default gasPerTx = 2000 if not provided
 
         this.charts[canvasId] = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: timeLabels,
                 datasets: [{
-                    label: 'Taiko Estimated Fee (gwei)',
+                    label: 'Taiko Estimated Fee per Gas (gwei)',
                     data: feeData,
                     borderColor: this.colors.primary,
                     backgroundColor: this.colors.primary + '20',
@@ -46,7 +47,7 @@ class ChartManager {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Taiko Estimated Fee Evolution Over Time',
+                        text: 'Taiko Estimated Fee per Gas Evolution Over Time',
                         font: { size: 14, weight: 600 },
                         color: '#2d3748',
                         padding: { bottom: 20 }
@@ -68,7 +69,7 @@ class ChartManager {
                             },
                             label: function(context) {
                                 const value = context.raw;
-                                return `Taiko Estimated Fee: ${value.toFixed(3)} gwei`;
+                                return `Taiko Estimated Fee per Gas: ${value.toFixed(3)} gwei`;
                             }
                         }
                     }
@@ -92,7 +93,7 @@ class ChartManager {
                     y: {
                         title: {
                             display: true,
-                            text: 'Fee (gwei)',
+                            text: 'Fee per Gas (gwei)',
                             color: '#4a5568',
                             font: { size: 12 }
                         },
@@ -103,7 +104,7 @@ class ChartManager {
                             color: '#718096',
                             font: { size: 11 }
                         },
-                        type: 'logarithmic'
+                        type: 'linear'
                     }
                 },
                 elements: {
@@ -123,7 +124,7 @@ class ChartManager {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 12 / 3600).toFixed(1)}h`);
+        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
         const vaultData = data.map(d => d.vaultBalance);
 
         this.charts[canvasId] = new Chart(ctx, {
@@ -245,7 +246,7 @@ class ChartManager {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 12 / 3600).toFixed(1)}h`);
+        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
         const l1Data = data.map(d => d.l1Basefee / 1e9); // Convert to gwei
 
         this.charts[canvasId] = new Chart(ctx, {
@@ -341,7 +342,7 @@ class ChartManager {
         });
     }
 
-    createCorrelationChart(canvasId, data) {
+    createCorrelationChart(canvasId, data, gasPerTx) {
         const ctx = document.getElementById(canvasId).getContext('2d');
 
         if (this.charts[canvasId]) {
@@ -351,14 +352,14 @@ class ChartManager {
         // Create scatter plot data
         const scatterData = data.map(d => ({
             x: d.l1Basefee / 1e9, // gwei
-            y: d.estimatedFee * 1e9 // Convert ETH to gwei
+            y: (d.estimatedFee * 1e9) / (gasPerTx || 2000) // Convert ETH to per-gas gwei
         }));
 
         this.charts[canvasId] = new Chart(ctx, {
             type: 'scatter',
             data: {
                 datasets: [{
-                    label: 'Taiko Estimated Fee vs L1 Basefee',
+                    label: 'Taiko Estimated Fee per Gas vs L1 Basefee',
                     data: scatterData,
                     backgroundColor: this.colors.accent + '60',
                     borderColor: this.colors.accent,
@@ -377,7 +378,7 @@ class ChartManager {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Taiko Estimated Fee vs L1 Basefee Correlation',
+                        text: 'Taiko Estimated Fee per Gas vs L1 Basefee Correlation',
                         font: { size: 14, weight: 600 },
                         color: '#2d3748',
                         padding: { bottom: 20 }
@@ -401,7 +402,7 @@ class ChartManager {
                                 const point = context.raw;
                                 return [
                                     `L1 Basefee: ${point.x.toFixed(2)} gwei`,
-                                    `Taiko Estimated Fee: ${point.y.toFixed(3)} gwei`
+                                    `Taiko Estimated Fee per Gas: ${point.y.toFixed(3)} gwei`
                                 ];
                             }
                         }
@@ -426,7 +427,7 @@ class ChartManager {
                     y: {
                         title: {
                             display: true,
-                            text: 'Taiko Estimated Fee (gwei)',
+                            text: 'Taiko Estimated Fee per Gas (gwei)',
                             color: '#4a5568',
                             font: { size: 12 }
                         },
@@ -437,7 +438,7 @@ class ChartManager {
                             color: '#718096',
                             font: { size: 11 }
                         },
-                        type: 'logarithmic'
+                        type: 'linear'
                     }
                 }
             }
@@ -452,9 +453,8 @@ class ChartManager {
         // Format value based on metric type
         let formattedValue;
         if (cardId === 'avg-fee-card') {
-            // Convert ETH to gwei and format
-            const gweiValue = value * 1e9;
-            formattedValue = gweiValue.toFixed(3);
+            // Value is already in per-gas gwei, just format
+            formattedValue = value.toFixed(3);
         } else if (cardId === 'fee-cv-card' || cardId === 'tracking-card') {
             formattedValue = value.toFixed(3);
         } else if (cardId === 'underfunded-card') {
@@ -522,10 +522,10 @@ class ChartManager {
             evaluations.l1Tracking = 'poor';
         }
 
-        // Average fee evaluation (relative)
-        if (metrics.avgFee < 1e-5) {
+        // Average fee evaluation (now in per-gas gwei)
+        if (metrics.avgFee < 0.01) {
             evaluations.avgFee = 'excellent';
-        } else if (metrics.avgFee < 1e-4) {
+        } else if (metrics.avgFee < 0.1) {
             evaluations.avgFee = 'good';
         } else {
             evaluations.avgFee = 'poor';
@@ -541,7 +541,7 @@ class ChartManager {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 12 / 3600).toFixed(1)}h`);
+        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
         const spotBasefeeData = data.map(d => d.l1Basefee / 1e9); // Convert wei to gwei
         const trendBasefeeData = data.map(d => d.l1TrendBasefee / 1e9); // Convert wei to gwei
 
@@ -665,7 +665,7 @@ class ChartManager {
             this.charts[canvasId].destroy();
         }
 
-        const timeLabels = data.map((_, i) => `${(i * 12 / 3600).toFixed(1)}h`);
+        const timeLabels = data.map((_, i) => `${(i * 2 / 3600).toFixed(1)}h`);
 
         // Calculate L1 and deficit components
         const l1Components = data.map(d => {
