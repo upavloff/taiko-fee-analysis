@@ -212,6 +212,16 @@ plots/
 figures/
 charts/
 
+# IMPORTANT: Allow critical analysis results for scientific reproducibility
+# These files contain validated optimal parameters and should be tracked
+!analysis/results/*_POST_TIMING_FIX.csv
+!analysis/results/cross_validation_results.csv
+!analysis/results/pareto_solutions*.csv
+
+# Allow other critical scientific validation files
+!analysis/results/optimal_*.csv
+!analysis/results/validation_*.csv
+
 # Config files with sensitive data
 config.ini
 secrets.yaml
