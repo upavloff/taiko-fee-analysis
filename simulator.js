@@ -485,44 +485,40 @@ class MetricsCalculator {
     }
 }
 
-// POST-TIMING-FIX: Research-validated presets for realistic lumpy cash flows
-// CRITICAL: These parameters are optimized for realistic vault economics:
-// - Fee collection: Every 2s (Taiko L2 blocks)
-// - L1 batch costs: Every 12s (6 Taiko steps)
-// - Creates natural saw-tooth deficit patterns
+// Research-validated presets for optimal fee mechanism performance
 const PRESETS = {
     'optimal': {
         mu: 0.0,
-        nu: 0.1,  // CHANGED: 0.3 → 0.1 (lower deficit weight optimal for lumpy flows)
-        H: 36,    // CHANGED: 288 → 36 (6-step cycle aligned, much shorter horizon)
-        description: '🎯 OPTIMAL LOW FEE: Post-timing-fix validated for realistic cash flows',
-        objective: 'Minimize user fees with realistic lumpy vault dynamics',
-        constraints: 'Optimized for 6-step batch cycles and saw-tooth deficit patterns',
+        nu: 0.1,
+        H: 36,
+        description: '🎯 OPTIMAL LOW FEE: Research-proven minimum fee strategy',
+        objective: 'Minimize user fees while maintaining vault solvency',
+        constraints: 'Optimized for 6-step batch cycles and natural deficit patterns',
         tradeoffs: 'Ignores L1 costs (μ=0.0), gentle deficit correction (ν=0.1), short horizon aligned with batch frequency',
-        riskProfile: 'Low risk (0.1336) - validated with realistic timing model across crisis scenarios',
-        useCase: 'OPTIMAL STRATEGY FOR REALISTIC TIMING: μ=0.0, ν=0.1, H=36. Minimizes fees while handling lumpy L1 payments every 12s.'
+        riskProfile: 'Low risk (0.1336) - validated across multiple crisis scenarios',
+        useCase: 'OPTIMAL STRATEGY: μ=0.0, ν=0.1, H=36. Minimizes fees while maintaining vault stability.'
     },
     'balanced': {
         mu: 0.0,
-        nu: 0.2,  // CHANGED: 0.1 → 0.2 (moderate deficit correction for saw-tooth patterns)
-        H: 72,    // CHANGED: 576 → 72 (6-step cycle aligned, 12x shorter horizon)
-        description: '⚖️ BALANCED: Research-optimized for realistic batch timing',
-        objective: 'Balance fee minimization with robust saw-tooth deficit management',
-        constraints: 'Designed for 6-step L1 batch frequency and lumpy cash flows',
+        nu: 0.2,
+        H: 72,
+        description: '⚖️ BALANCED: Research-optimized balanced strategy',
+        objective: 'Balance fee minimization with robust deficit management',
+        constraints: 'Designed for optimal L1 batch frequency alignment',
         tradeoffs: 'Ignores L1 costs (μ=0.0), moderate deficit correction (ν=0.2), horizon aligned with natural cycles',
-        riskProfile: 'Very low risk (0.1319) - balanced approach for realistic timing dynamics',
-        useCase: 'BALANCED FOR LUMPY FLOWS: μ=0.0, ν=0.2, H=72. Balances low fees with stability under realistic 12s L1 payment cycles.'
+        riskProfile: 'Very low risk (0.1319) - balanced approach across market conditions',
+        useCase: 'BALANCED STRATEGY: μ=0.0, ν=0.2, H=72. Balances low fees with stability.'
     },
     'crisis-resilient': {
         mu: 0.0,
-        nu: 0.7,  // CHANGED: 0.9 → 0.7 (strong but not excessive for saw-tooth correction)
-        H: 288,   // KEPT: 288 → 288 (long horizon still optimal for crisis resilience)
-        description: '⛑️ CRISIS-RESILIENT: Maximum stability for realistic timing',
-        objective: 'Maximize protocol robustness with lumpy cash flow awareness',
-        constraints: 'Handles extreme volatility with realistic saw-tooth deficit dynamics',
+        nu: 0.7,
+        H: 288,
+        description: '⛑️ CRISIS-RESILIENT: Maximum stability configuration',
+        objective: 'Maximize protocol robustness and vault recovery speed',
+        constraints: 'Handles extreme volatility with strong deficit correction',
         tradeoffs: 'Ignores L1 costs (μ=0.0), strong deficit correction (ν=0.7), extended horizon for crisis recovery',
-        riskProfile: 'Ultra-low risk (0.1207) - strongest stability for realistic timing model',
-        useCase: 'MAXIMUM STABILITY WITH REALISTIC TIMING: μ=0.0, ν=0.7, H=288. Prioritizes vault health during extreme volatility with lumpy payment awareness.'
+        riskProfile: 'Ultra-low risk (0.1207) - strongest stability for extreme market conditions',
+        useCase: 'MAXIMUM STABILITY: μ=0.0, ν=0.7, H=288. Prioritizes vault health during extreme volatility.'
     }
 };
 
