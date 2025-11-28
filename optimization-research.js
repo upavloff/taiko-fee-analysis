@@ -91,6 +91,27 @@ class OptimizationResearchController {
     }
 
     /**
+     * Normalize weight names from short IDs to canonical keys
+     */
+    getCanonicalWeightName(weightName) {
+        const map = {
+            w1: 'w1_fee_affordability',
+            w2: 'w2_fee_stability',
+            w3: 'w3_fee_predictability_1h',
+            w4: 'w4_fee_predictability_6h',
+            w5: 'w5_insolvency_protection',
+            w6: 'w6_deficit_duration',
+            w7: 'w7_vault_stress',
+            w8: 'w8_continuous_underfunding',
+            w9: 'w9_vault_utilization',
+            w10: 'w10_deficit_correction',
+            w11: 'w11_capital_efficiency'
+        };
+
+        return map[weightName] || weightName;
+    }
+
+    /**
      * Setup methodology panel toggle and interactions
      */
     setupMethodologyPanel() {
@@ -185,7 +206,17 @@ class OptimizationResearchController {
             console.log(`🎛️ Found ${sliders.length} sliders for category: ${category}`);
 
             sliders.forEach(slider => {
-                const weightName = slider.dataset.weight;
+                const originalName = slider.dataset.weight;
+                const weightName = this.getCanonicalWeightName(originalName);
+
+                // Normalize data-weight so all downstream logic uses canonical keys
+                slider.dataset.weight = weightName;
+
+                // Align lock button data attributes with canonical key
+                const lockBtn = slider.parentElement?.querySelector('.lock-weight, .weight-lock, .pin-weight');
+                if (lockBtn) {
+                    lockBtn.dataset.weight = weightName;
+                }
 
                 if (this.currentWeights[weightName] !== undefined) {
                     slider.value = this.currentWeights[weightName];
@@ -208,7 +239,7 @@ class OptimizationResearchController {
             });
 
             // Lock buttons for the category
-            const lockButtons = document.querySelectorAll(`[data-category="${category}"] .pin-weight, [data-category="${category}"] .weight-lock`);
+            const lockButtons = document.querySelectorAll(`[data-category="${category}"] .pin-weight, [data-category="${category}"] .weight-lock, [data-category="${category}"] .lock-weight`);
             lockButtons.forEach(btn => {
                 btn.addEventListener('click', () => this.toggleWeightLock(btn, category));
             });
@@ -221,7 +252,7 @@ class OptimizationResearchController {
      * Handle individual weight changes with live preview
      */
     handleWeightChange(slider, category) {
-        const weightName = slider.dataset.weight;
+        const weightName = this.getCanonicalWeightName(slider.dataset.weight);
         const newValue = parseFloat(slider.value);
 
         this.currentWeights[weightName] = newValue;
@@ -303,7 +334,7 @@ class OptimizationResearchController {
      */
     updateSliderDisplay(slider) {
         const value = parseFloat(slider.value);
-        const weightName = slider.dataset.weight;
+        const weightName = this.getCanonicalWeightName(slider.dataset.weight);
 
         // Update the corresponding span element by mapping weight names to display IDs
         const weightIdMap = {
@@ -341,11 +372,11 @@ class OptimizationResearchController {
     updateCategorySliders(category) {
         const sliders = document.querySelectorAll(`[data-category="${category}"] .weight-slider`);
         sliders.forEach(slider => {
-            const weightName = slider.dataset.weight;
+            const weightName = this.getCanonicalWeightName(slider.dataset.weight);
             slider.value = this.currentWeights[weightName];
             this.updateSliderDisplay(slider);
 
-            const lockBtn = slider.parentElement?.querySelector('.pin-weight, .weight-lock');
+            const lockBtn = slider.parentElement?.querySelector('.pin-weight, .weight-lock, .lock-weight');
             const isLocked = this.lockedWeights[category]?.has(weightName);
             if (lockBtn) {
                 lockBtn.textContent = isLocked ? '🔒' : '🔓';
@@ -361,7 +392,8 @@ class OptimizationResearchController {
         const categoryWeights = this.getCategoryWeights(category);
         const sum = categoryWeights.reduce((total, w) => total + this.currentWeights[w], 0);
 
-        const sumDisplay = document.querySelector(`#${category}-category-sum`);
+        const sumDisplay = document.querySelector(`#${category}-category-sum`) ||
+                           document.querySelector(`#${category}-sum`);
         if (sumDisplay) {
             sumDisplay.textContent = sum.toFixed(3);
 
@@ -442,7 +474,7 @@ class OptimizationResearchController {
      * Toggle lock for a specific weight (limit locks to N-2 per category)
      */
     toggleWeightLock(button, category) {
-        const weightName = button.dataset.weight;
+        const weightName = this.getCanonicalWeightName(button.dataset.weight);
         const locks = this.lockedWeights[category] || new Set();
         if (locks.has(weightName)) {
             locks.delete(weightName);

@@ -427,6 +427,299 @@
                     <div class="objectives-overview">
                         <h3>🎯 Multi-Objective Optimization</h3>
                         <p>Configure weights for 11 metrics across three objective categories and discover Pareto optimal fee mechanism parameters.</p>
+
+                        <!-- Objective Categories -->
+                        <div class="objectives-grid">
+                            <div class="objective-card ux-card">
+                                <div class="objective-header">
+                                    <span class="objective-icon">👥</span>
+                                    <h4>User Experience</h4>
+                                </div>
+                                <div class="objective-description">
+                                    <p>Focuses on making fees affordable and predictable for users.</p>
+                                    <div class="mathematical-formulation">
+                                        $$\text{UX}(\mu, \nu, H) = \max \left[ w_1 \cdot \mathcal{A}(f) + w_2 \cdot \mathcal{S}(f) + w_3 \cdot \mathcal{P}_{\text{1h}}(f) + w_4 \cdot \mathcal{P}_{\text{6h}}(f) \right]$$
+                                        <div class="formula-components">
+                                            <small>where $\mathcal{A}(f) = -\log(1 + \bar{f} \times 1000)$, $\mathcal{S}(f) = 1 - \text{CV}(f)$, $\mathcal{P}_t(f)$ = predictability over window $t$</small>
+                                        </div>
+                                    </div>
+                                    <div class="metrics-preview">
+                                        <span class="metric-tag">💰 Fee Affordability</span>
+                                        <span class="metric-tag">📈 Fee Stability</span>
+                                        <span class="metric-tag">🔮 Predictability</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="objective-card safety-card">
+                                <div class="objective-header">
+                                    <span class="objective-icon">🛡️</span>
+                                    <h4>Protocol Safety</h4>
+                                </div>
+                                <div class="objective-description">
+                                    <p>Ensures the protocol remains secure and well-funded under stress.</p>
+                                    <div class="mathematical-formulation">
+                                        $$\text{Safety}(\mu, \nu, H) = \max \left[ w_5 \cdot (1 - P_{\text{insol}}) + w_6 \cdot (1 - \mathcal{D}_{\text{weighted}}) + w_7 \cdot \mathcal{R}_{\text{stress}} \right]$$
+                                        <div class="formula-components">
+                                            <small>where $P_{\text{insol}} = \mathbb{P}(V < V_{\text{crit}})$, $\mathcal{D}_{\text{weighted}} = \frac{\sum (d_i \cdot t_i)^2}{T}$, $\mathcal{R}_{\text{stress}}$ = stress recovery rate</small>
+                                        </div>
+                                    </div>
+                                    <div class="metrics-preview">
+                                        <span class="metric-tag">🚨 Insolvency Protection</span>
+                                        <span class="metric-tag">⏰ Deficit Control</span>
+                                        <span class="metric-tag">💪 Resilience</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="objective-card efficiency-card">
+                                <div class="objective-header">
+                                    <span class="objective-icon">💰</span>
+                                    <h4>Economic Efficiency</h4>
+                                </div>
+                                <div class="objective-description">
+                                    <p>Optimizes capital usage and operational performance.</p>
+                                    <div class="mathematical-formulation">
+                                        $$\text{Efficiency}(\mu, \nu, H) = \max \left[ w_8 \cdot \mathcal{U}_{\text{vault}} + w_9 \cdot \mathcal{C}_{\text{correction}} + w_{10} \cdot \mathcal{E}_{\text{capital}} \right]$$
+                                        <div class="formula-components">
+                                            <small>where $\mathcal{U}_{\text{vault}} = 1 - \frac{\overline{|V - V_{\text{target}}|}}{V_{\text{target}}}$, $\mathcal{C}_{\text{correction}} = \frac{\Delta d}{\Delta t}$, $\mathcal{E}_{\text{capital}}$ = capital utilization efficiency</small>
+                                        </div>
+                                    </div>
+                                    <div class="metrics-preview">
+                                        <span class="metric-tag">📊 Vault Utilization</span>
+                                        <span class="metric-tag">⚡ Correction Speed</span>
+                                        <span class="metric-tag">🎯 Capital Efficiency</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Weight Configuration Section -->
+                    <div class="weight-config-section">
+                        <div class="section-header">
+                            <h3>⚖️ Weight Configuration</h3>
+                            <p>Adjust the relative importance of different metrics. Weights within each category automatically normalize to 1.0.</p>
+                            <div class="quick-presets">
+                                <button class="preset-btn" data-preset="balanced">⚖️ Balanced</button>
+                                <button class="preset-btn" data-preset="ux-focused">👥 UX Focused</button>
+                                <button class="preset-btn" data-preset="safety-focused">🛡️ Safety Focused</button>
+                                <button class="preset-btn" data-preset="efficiency-focused">💰 Efficiency Focused</button>
+                            </div>
+                        </div>
+
+                        <!-- Weight Categories -->
+                        <div class="weight-categories">
+                            <!-- UX Weights -->
+                            <div class="weight-category" data-category="ux">
+                                <div class="category-header">
+                                    <h4>👥 User Experience Weights</h4>
+                                    <div class="category-status">
+                                        <span class="sum-indicator">∑ = <span id="ux-sum">1.000</span></span>
+                                        <button class="reset-category" data-category="ux" title="Reset to defaults">🔄</button>
+                                    </div>
+                                </div>
+                                <div class="weight-controls-grid">
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            💰 Fee Affordability
+                                            <span class="weight-value" id="w1-value">0.40</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w1-slider" min="0" max="1" step="0.05" value="0.40" class="weight-slider" data-weight="w1" data-category="ux">
+                                            <button class="lock-weight" data-weight="w1" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Lower average transaction costs</div>
+                                    </div>
+
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            📈 Fee Stability
+                                            <span class="weight-value" id="w2-value">0.30</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w2-slider" min="0" max="1" step="0.05" value="0.30" class="weight-slider" data-weight="w2" data-category="ux">
+                                            <button class="lock-weight" data-weight="w2" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Consistent pricing without big swings</div>
+                                    </div>
+
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            🔮 Predictability (1h)
+                                            <span class="weight-value" id="w3-value">0.20</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w3-slider" min="0" max="1" step="0.05" value="0.20" class="weight-slider" data-weight="w3" data-category="ux">
+                                            <button class="lock-weight" data-weight="w3" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Fees predictable over 1 hour</div>
+                                    </div>
+
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            ⏱️ Predictability (6h)
+                                            <span class="weight-value" id="w4-value">0.10</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w4-slider" min="0" max="1" step="0.05" value="0.10" class="weight-slider" data-weight="w4" data-category="ux">
+                                            <button class="lock-weight" data-weight="w4" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Fees predictable over 6 hours</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Safety Weights -->
+                            <div class="weight-category" data-category="safety">
+                                <div class="category-header">
+                                    <h4>🛡️ Protocol Safety Weights</h4>
+                                    <div class="category-status">
+                                        <span class="sum-indicator">∑ = <span id="safety-sum">1.000</span></span>
+                                        <button class="reset-category" data-category="safety" title="Reset to defaults">🔄</button>
+                                    </div>
+                                </div>
+                                <div class="weight-controls-grid">
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            🚨 Insolvency Protection
+                                            <span class="weight-value" id="w5-value">0.40</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w5-slider" min="0" max="1" step="0.05" value="0.40" class="weight-slider" data-weight="w5" data-category="safety">
+                                            <button class="lock-weight" data-weight="w5" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Prevents vault from running out of funds</div>
+                                    </div>
+
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            ⏰ Deficit Duration Control
+                                            <span class="weight-value" id="w6-value">0.30</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w6-slider" min="0" max="1" step="0.05" value="0.30" class="weight-slider" data-weight="w6" data-category="safety">
+                                            <button class="lock-weight" data-weight="w6" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Limits how long vault stays underfunded</div>
+                                    </div>
+
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            💪 Vault Stress Resilience
+                                            <span class="weight-value" id="w7-value">0.20</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w7-slider" min="0" max="1" step="0.05" value="0.20" class="weight-slider" data-weight="w7" data-category="safety">
+                                            <button class="lock-weight" data-weight="w7" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Quick recovery during market volatility</div>
+                                    </div>
+
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            🔄 Underfunding Resistance
+                                            <span class="weight-value" id="w8-value">0.10</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w8-slider" min="0" max="1" step="0.05" value="0.10" class="weight-slider" data-weight="w8" data-category="safety">
+                                            <button class="lock-weight" data-weight="w8" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Avoids extended periods below target</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Efficiency Weights -->
+                            <div class="weight-category" data-category="efficiency">
+                                <div class="category-header">
+                                    <h4>💰 Economic Efficiency Weights</h4>
+                                    <div class="category-status">
+                                        <span class="sum-indicator">∑ = <span id="efficiency-sum">1.000</span></span>
+                                        <button class="reset-category" data-category="efficiency" title="Reset to defaults">🔄</button>
+                                    </div>
+                                </div>
+                                <div class="weight-controls-grid">
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            📊 Vault Utilization
+                                            <span class="weight-value" id="w9-value">0.40</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w9-slider" min="0" max="1" step="0.05" value="0.40" class="weight-slider" data-weight="w9" data-category="efficiency">
+                                            <button class="lock-weight" data-weight="w9" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Keeps vault balance near optimal level</div>
+                                    </div>
+
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            ⚡ Deficit Correction Rate
+                                            <span class="weight-value" id="w10-value">0.30</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w10-slider" min="0" max="1" step="0.05" value="0.30" class="weight-slider" data-weight="w10" data-category="efficiency">
+                                            <button class="lock-weight" data-weight="w10" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Speed of recovering from deficits</div>
+                                    </div>
+
+                                    <div class="weight-control">
+                                        <label class="weight-label">
+                                            🎯 Capital Efficiency
+                                            <span class="weight-value" id="w11-value">0.30</span>
+                                        </label>
+                                        <div class="weight-slider-container">
+                                            <input type="range" id="w11-slider" min="0" max="1" step="0.05" value="0.30" class="weight-slider" data-weight="w11" data-category="efficiency">
+                                            <button class="lock-weight" data-weight="w11" title="Lock weight">🔓</button>
+                                        </div>
+                                        <div class="weight-description">Maximum performance per unit of capital</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Algorithm Configuration -->
+                    <div class="algorithm-config-section">
+                        <div class="section-header">
+                            <h3>🧬 Algorithm Parameters</h3>
+                            <p>Configure the NSGA-II genetic algorithm parameters for optimization.</p>
+                        </div>
+                        <div class="algorithm-controls">
+                            <div class="algorithm-control">
+                                <label class="algorithm-label">
+                                    Population Size
+                                    <span class="algorithm-value" id="population-value">100</span>
+                                </label>
+                                <input type="range" id="population-slider" min="50" max="200" step="10" value="100" class="algorithm-slider">
+                                <div class="algorithm-description">Number of solutions per generation</div>
+                            </div>
+                            <div class="algorithm-control">
+                                <label class="algorithm-label">
+                                    Generations
+                                    <span class="algorithm-value" id="generations-value">50</span>
+                                </label>
+                                <input type="range" id="generations-slider" min="20" max="100" step="5" value="50" class="algorithm-slider">
+                                <div class="algorithm-description">Number of evolutionary iterations</div>
+                            </div>
+                            <div class="algorithm-control">
+                                <label class="algorithm-label">
+                                    Crossover Rate
+                                    <span class="algorithm-value" id="crossover-value">0.9</span>
+                                </label>
+                                <input type="range" id="crossover-slider" min="0.5" max="1.0" step="0.05" value="0.9" class="algorithm-slider">
+                                <div class="algorithm-description">Probability of combining solutions</div>
+                            </div>
+                            <div class="algorithm-control">
+                                <label class="algorithm-label">
+                                    Mutation Rate
+                                    <span class="algorithm-value" id="mutation-value">0.1</span>
+                                </label>
+                                <input type="range" id="mutation-slider" min="0.05" max="0.3" step="0.01" value="0.1" class="algorithm-slider">
+                                <div class="algorithm-description">Probability of random parameter changes</div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 3D Visualization -->
@@ -478,6 +771,78 @@
                             <span>Generation: <span id="current-generation">0</span>/<span id="total-generations">50</span></span>
                             <span>Solutions: <span id="solutions-count">0</span></span>
                             <span>Pareto Points: <span id="pareto-count">0</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Results and Analysis Section -->
+                    <div class="results-section">
+                        <div class="results-layout">
+                            <!-- Solutions List -->
+                            <div class="solutions-panel">
+                                <div class="panel-header">
+                                    <h3>📊 Optimization Solutions</h3>
+                                    <div class="solutions-controls">
+                                        <select id="sort-solutions" class="sort-select">
+                                            <option value="dominance">Sort by Dominance Rank</option>
+                                            <option value="ux">Sort by UX Score</option>
+                                            <option value="safety">Sort by Safety Score</option>
+                                            <option value="efficiency">Sort by Efficiency Score</option>
+                                        </select>
+                                        <button id="export-solutions" class="btn-small" disabled>📋 Export</button>
+                                    </div>
+                                </div>
+                                <div id="solutions-list" class="solutions-list">
+                                    <div class="empty-state">
+                                        <div class="empty-icon">🎯</div>
+                                        <p>No solutions yet</p>
+                                        <p class="empty-description">Start optimization to discover Pareto optimal fee mechanism parameters</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Selected Solution Details -->
+                            <div class="solution-details-panel">
+                                <div class="panel-header">
+                                    <h3>🔍 Solution Details</h3>
+                                </div>
+                                <div id="solution-details" class="solution-details">
+                                    <div class="empty-state">
+                                        <div class="empty-icon">👆</div>
+                                        <p>Select a solution</p>
+                                        <p class="empty-description">Click on a solution in the list or 3D plot to view detailed metrics and parameters</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Convergence Analysis -->
+                        <div class="convergence-section">
+                            <div class="section-header">
+                                <h3>📈 Convergence Analysis</h3>
+                                <p>Monitor how the algorithm improves solutions over generations.</p>
+                            </div>
+                            <div class="convergence-charts">
+                                <div class="convergence-chart">
+                                    <canvas id="convergence-chart"></canvas>
+                                </div>
+                                <div class="convergence-metrics">
+                                    <div class="convergence-metric">
+                                        <div class="metric-label">Hypervolume</div>
+                                        <div class="metric-value" id="hypervolume-value">-</div>
+                                        <div class="metric-description">Quality of Pareto frontier</div>
+                                    </div>
+                                    <div class="convergence-metric">
+                                        <div class="metric-label">Spread</div>
+                                        <div class="metric-value" id="spread-value">-</div>
+                                        <div class="metric-description">Diversity of solutions</div>
+                                    </div>
+                                    <div class="convergence-metric">
+                                        <div class="metric-label">Convergence</div>
+                                        <div class="metric-value" id="convergence-value">-</div>
+                                        <div class="metric-description">Distance to true Pareto front</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

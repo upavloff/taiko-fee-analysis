@@ -199,15 +199,15 @@ class GeneticOperators {
      * Calculate beta for SBX crossover
      */
     getBeta(rand, eta, y1, y2, lb, ub) {
-        let beta;
-        if (rand <= 0.5) {
-            const alpha = 2.0 - Math.pow(2.0 * rand, -(eta + 1.0));
-            beta = Math.pow(alpha, 1.0 / (eta + 1.0));
-        } else {
-            const alpha = 2.0 - Math.pow(2.0 * (1.0 - rand), -(eta + 1.0));
-            beta = Math.pow(1.0 / alpha, 1.0 / (eta + 1.0));
+        // Clamp random draw to avoid infinities/NaNs when rand is extremely close to 0 or 1
+        const u = Math.min(Math.max(rand, 1e-12), 1 - 1e-12);
+
+        // Standard SBX beta computation (Deb et al.)
+        if (u <= 0.5) {
+            return Math.pow(2.0 * u, 1.0 / (eta + 1.0));
         }
-        return beta;
+
+        return Math.pow(1.0 / (2.0 * (1.0 - u)), 1.0 / (eta + 1.0));
     }
 
     /**
