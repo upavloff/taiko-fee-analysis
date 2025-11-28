@@ -286,6 +286,20 @@
 
         <!-- Main Content -->
         <div class="main-content">
+            <!-- Research Tab Navigation -->
+            <div class="research-tab-navigation">
+                <button class="research-tab-button active" data-tab="simulation">
+                    <span class="tab-icon">⚡</span>
+                    Simulation
+                </button>
+                <button class="research-tab-button" data-tab="optimization">
+                    <span class="tab-icon">🎯</span>
+                    Optimization
+                </button>
+            </div>
+
+            <!-- Tab Content: Simulation -->
+            <div class="research-tab-content active" id="simulation-tab-content">
             <!-- Fee Formula Header -->
             <div class="formula-header">
                 <div class="formula-content">
@@ -404,13 +418,84 @@
 
             </div>
         </div>
+            <!-- End Simulation Tab Content -->
+
+            <!-- Tab Content: Optimization Research -->
+            <div class="research-tab-content" id="optimization-tab-content">
+                <div class="optimization-research-interface">
+                    <!-- Optimization Objectives Overview -->
+                    <div class="objectives-overview">
+                        <h3>🎯 Multi-Objective Optimization</h3>
+                        <p>Configure weights for 11 metrics across three objective categories and discover Pareto optimal fee mechanism parameters.</p>
+                    </div>
+
+                    <!-- 3D Visualization -->
+                    <div class="visualization-section">
+                        <div class="viz-header">
+                            <h3>📊 Pareto Frontier 3D Plot</h3>
+                            <div class="viz-controls">
+                                <button id="reset-camera" class="btn-icon-small" title="Reset Camera">🎯</button>
+                                <button id="fullscreen-viz" class="btn-icon-small" title="Fullscreen">⛶</button>
+                            </div>
+                        </div>
+                        <div class="visualization-container">
+                            <div id="pareto-visualization">
+                                <!-- Three.js visualization will be initialized here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Optimization Controls -->
+                    <div class="optimization-controls">
+                        <button id="start-optimization" class="btn btn-primary">
+                            <span class="btn-icon">🚀</span>
+                            Start Optimization
+                        </button>
+                        <button id="stop-optimization" class="btn btn-secondary" disabled>
+                            <span class="btn-icon">⏹️</span>
+                            Stop
+                        </button>
+                        <button id="reset-optimization" class="btn btn-secondary">
+                            <span class="btn-icon">🔄</span>
+                            Reset
+                        </button>
+                        <button id="export-results" class="btn btn-secondary" disabled>
+                            <span class="btn-icon">💾</span>
+                            Export Results
+                        </button>
+                    </div>
+
+                    <!-- Progress Section -->
+                    <div class="progress-section">
+                        <div class="progress-header">
+                            <h3>🔄 Optimization Progress</h3>
+                            <span id="progress-status" class="status-badge">Ready to start</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-stats">
+                            <span>Generation: <span id="current-generation">0</span>/<span id="total-generations">50</span></span>
+                            <span>Solutions: <span id="solutions-count">0</span></span>
+                            <span>Pareto Points: <span id="pareto-count">0</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End Optimization Research Tab Content -->
+
+        </div>
     </div>
 
 
 
     <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="simulator.js"></script>
     <script src="charts.js"></script>
+    <script src="pareto-visualizer.js"></script>
+    <script src="nsga-ii-web.js"></script>
+    <script src="optimization-research.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

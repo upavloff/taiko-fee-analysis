@@ -662,21 +662,36 @@ class TaikoFeeExplorer {
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Taiko Fee Explorer initializing...');
+    console.log('🚀 Taiko Fee Explorer initializing...');
 
     // Check if required dependencies are loaded
+    console.log('📦 Checking dependencies...');
+    console.log('- Chart.js:', typeof Chart !== 'undefined');
+    console.log('- THREE.js:', typeof THREE !== 'undefined');
+    console.log('- TaikoFeeSimulator:', typeof TaikoFeeSimulator !== 'undefined');
+    console.log('- OptimizationResearchController:', typeof OptimizationResearchController !== 'undefined');
+    console.log('- ParetoVisualizer:', typeof ParetoVisualizer !== 'undefined');
+
     if (typeof Chart === 'undefined') {
-        console.error('Chart.js not loaded');
+        console.error('❌ Chart.js not loaded');
         return;
     }
 
     if (typeof TaikoFeeSimulator === 'undefined') {
-        console.error('Simulator not loaded');
+        console.error('❌ Simulator not loaded');
         return;
     }
 
     // Initialize the application
     window.taikoExplorer = new TaikoFeeExplorer();
+
+    // Initialize the optimization research interface
+    if (typeof OptimizationResearchController !== 'undefined') {
+        window.optimizationResearch = new OptimizationResearchController();
+        console.log('Optimization Research Controller initialized successfully');
+    } else {
+        console.error('OptimizationResearchController not loaded');
+    }
 
     console.log('Taiko Fee Explorer initialized successfully');
 

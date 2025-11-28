@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Optimization Pipeline</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        button {
+            background: #3182ce;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .status.success { background: #f0fff4; border: 1px solid #68d391; }
+        .status.error { background: #fed7d7; border: 1px solid #fc8181; }
+        .status.info { background: #ebf8ff; border: 1px solid #63b3ed; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Optimization Pipeline Test</h1>
+
+        <div id="status" class="status info">Ready to test optimization pipeline...</div>
+
+        <button id="test-nsga" onclick="testNSGAII()">Test NSGA-II Engine</button>
+        <button id="test-integration" onclick="testIntegration()">Test Full Integration</button>
+        <button id="clear-log" onclick="clearLog()">Clear Log</button>
+
+        <div id="log" class="log">Test log will appear here...\n</div>
+    </div>
+
+    <script src="nsga-ii-web.js"></script>
+    <script>
+        let logElement = document.getElementById('log');
+        let statusElement = document.getElementById('status');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function setStatus(message, type = 'info') {
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        function clearLog() {
+            logElement.textContent = 'Test log cleared...\n';
+        }
+
+        async function testNSGAII() {
+            try {
+                log('🚀 Testing NSGA-II engine...');
+                setStatus('Testing NSGA-II engine...', 'info');
+
+                // Check if NSGA-II is available
+                if (!window.NSGAII) {
+                    throw new Error('NSGA-II class not found');
+                }
+                log('✅ NSGA-II class loaded successfully');
+
+                // Test basic instantiation
+                const testWeights = {
+                    w1_fee_affordability: 0.40,
+                    w2_fee_stability: 0.30,
+                    w3_fee_predictability_1h: 0.20,
+                    w4_fee_predictability_6h: 0.10,
+                    w5_insolvency_protection: 0.40,
+                    w6_deficit_duration: 0.30,
+                    w7_vault_stress: 0.20,
+                    w8_continuous_underfunding: 0.10,
+                    w9_vault_utilization: 0.40,
+                    w10_deficit_correction: 0.30,
+                    w11_capital_efficiency: 0.30
+                };
+
+                const optimizer = new NSGAII({
+                    populationSize: 10,
+                    maxGenerations: 3,
+                    weights: testWeights,
+                    onProgress: (progress) => log(`📊 Generation ${progress.generation}/${progress.maxGenerations}, Pareto: ${progress.paretoFrontSize}`),
+                    onSolution: (solution) => log(`🧬 New solution: μ=${solution.mu.toFixed(3)}, ν=${solution.nu.toFixed(3)}, H=${solution.H}`),
+                    onComplete: (results) => log(`✅ Optimization complete: ${results.paretoFront.length} Pareto solutions found`)
+                });
+
+                log('✅ NSGA-II optimizer created successfully');
+
+                // Run short optimization test
+                log('🔄 Starting short optimization run...');
+                const results = await optimizer.start();
+
+                log(`🎯 Optimization completed successfully!`);
+                log(`   Total generations: ${results.generation}`);
+                log(`   Population size: ${results.population.length}`);
+                log(`   Pareto front size: ${results.paretoFront.length}`);
+
+                if (results.paretoFront.length > 0) {
+                    const best = results.paretoFront[0];
+                    log(`   Best solution: μ=${best.mu.toFixed(3)}, ν=${best.nu.toFixed(3)}, H=${best.H}`);
+                    log(`   Scores: UX=${best.uxScore.toFixed(3)}, Safety=${best.safetyScore.toFixed(3)}, Efficiency=${best.efficiencyScore.toFixed(3)}`);
+                }
+
+                setStatus('NSGA-II test completed successfully!', 'success');
+
+            } catch (error) {
+                log(`❌ NSGA-II test failed: ${error.message}`);
+                setStatus(`NSGA-II test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testIntegration() {
+            try {
+                log('🔧 Testing optimization integration...');
+                setStatus('Testing integration with optimization research interface...', 'info');
+
+                // Test Individual class
+                if (!window.Individual) {
+                    throw new Error('Individual class not found');
+                }
+
+                const testIndividual = new Individual(0.0, 0.2, 72);
+                log('✅ Individual class works');
+
+                // Test parameter bounds
+                const bounds = new (eval('(' + NSGAII.toString().match(/class ParameterBounds[^}]+}/)[0] + ')'))();
+                const randomIndividual = bounds.generateRandomIndividual();
+                log(`✅ Parameter bounds: Generated individual μ=${randomIndividual.mu.toFixed(3)}, ν=${randomIndividual.nu.toFixed(3)}, H=${randomIndividual.H}`);
+
+                // Verify 6-step alignment
+                if (randomIndividual.H % 6 !== 0) {
+                    throw new Error(`H value ${randomIndividual.H} is not 6-step aligned!`);
+                }
+                log('✅ 6-step alignment constraint verified');
+
+                // Test evaluator
+                const evaluator = new TaikoFeeEvaluator();
+                const evaluatedIndividual = await evaluator.evaluate(testIndividual);
+
+                if (evaluatedIndividual.uxScore === null) {
+                    throw new Error('Evaluation failed - scores are null');
+                }
+
+                log(`✅ Evaluator works: UX=${evaluatedIndividual.uxScore.toFixed(3)}, Safety=${evaluatedIndividual.safetyScore.toFixed(3)}, Efficiency=${evaluatedIndividual.efficiencyScore.toFixed(3)}`);
+                log(`   Feasible: ${evaluatedIndividual.isFeasible}, Violations: ${evaluatedIndividual.constraintViolations}`);
+
+                setStatus('Integration test completed successfully!', 'success');
+
+            } catch (error) {
+                log(`❌ Integration test failed: ${error.message}`);
+                setStatus(`Integration test failed: ${error.message}`, 'error');
+            }
+        }
+
+        log('🧪 Test environment ready. Click buttons above to run tests.');
+    </script>
+</body>
+</html>

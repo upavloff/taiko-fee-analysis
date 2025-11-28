@@ -1,0 +1,756 @@
+/**
+ * Web-Adapted NSGA-II Multi-Objective Optimization Engine
+ *
+ * Browser-compatible implementation of NSGA-II (Non-dominated Sorting Genetic Algorithm II)
+ * for optimizing Taiko fee mechanism parameters across three objectives:
+ * - User Experience (UX)
+ * - Protocol Safety
+ * - Economic Efficiency
+ *
+ * Features:
+ * - Real-time optimization with progress callbacks
+ * - Web Worker support for non-blocking execution
+ * - Configurable population size and generation limits
+ * - Pareto frontier tracking and dominance relationships
+ * - Parameter constraint handling (6-step alignment, bounds checking)
+ */
+
+class Individual {
+    constructor(mu = 0, nu = 0.1, H = 36) {
+        this.mu = mu;           // L1 weight parameter [0.0, 1.0]
+        this.nu = nu;           // Deficit weight parameter [0.02, 1.0]
+        this.H = H;             // Horizon parameter (6-step aligned)
+
+        // Objective values (higher is better, will be negated for minimization)
+        this.uxScore = null;
+        this.safetyScore = null;
+        this.efficiencyScore = null;
+
+        // NSGA-II specific attributes
+        this.dominationCount = 0;       // Number of solutions dominating this one
+        this.dominatedSolutions = [];   // Solutions dominated by this one
+        this.rank = null;               // Non-domination rank
+        this.crowdingDistance = 0;      // Crowding distance for diversity
+
+        // Constraint handling
+        this.constraintViolations = 0;
+        this.isFeasible = true;
+
+        // Metadata
+        this.generation = 0;
+        this.evaluationTime = 0;
+    }
+
+    /**
+     * Create a copy of this individual
+     */
+    clone() {
+        const copy = new Individual(this.mu, this.nu, this.H);
+        copy.uxScore = this.uxScore;
+        copy.safetyScore = this.safetyScore;
+        copy.efficiencyScore = this.efficiencyScore;
+        copy.constraintViolations = this.constraintViolations;
+        copy.isFeasible = this.isFeasible;
+        return copy;
+    }
+
+    /**
+     * Check if this individual dominates another
+     */
+    dominates(other) {
+        if (!this.isFeasible && other.isFeasible) return false;
+        if (this.isFeasible && !other.isFeasible) return true;
+
+        let atLeastOneBetter = false;
+        let anyWorse = false;
+
+        // Compare all objectives (higher is better)
+        const objectives = ['uxScore', 'safetyScore', 'efficiencyScore'];
+
+        for (const obj of objectives) {
+            if (this[obj] > other[obj]) {
+                atLeastOneBetter = true;
+            } else if (this[obj] < other[obj]) {
+                anyWorse = true;
+                break;
+            }
+        }
+
+        return atLeastOneBetter && !anyWorse;
+    }
+
+    /**
+     * Get parameter values as array for genetic operations
+     */
+    getParameters() {
+        return [this.mu, this.nu, this.H];
+    }
+
+    /**
+     * Set parameters from array
+     */
+    setParameters(params) {
+        this.mu = params[0];
+        this.nu = params[1];
+        this.H = params[2];
+    }
+}
+
+class ParameterBounds {
+    constructor() {
+        this.muBounds = [0.0, 1.0];
+        this.nuBounds = [0.02, 1.0];
+        this.HBounds = [6, 576];
+
+        // Pre-computed 6-step aligned H values for efficiency
+        this.validHValues = [];
+        for (let h = this.HBounds[0]; h <= this.HBounds[1]; h += 6) {
+            this.validHValues.push(h);
+        }
+    }
+
+    /**
+     * Generate random individual within bounds
+     */
+    generateRandomIndividual() {
+        const mu = Math.random() * (this.muBounds[1] - this.muBounds[0]) + this.muBounds[0];
+        const nu = Math.random() * (this.nuBounds[1] - this.nuBounds[0]) + this.nuBounds[0];
+        const H = this.validHValues[Math.floor(Math.random() * this.validHValues.length)];
+
+        return new Individual(mu, nu, H);
+    }
+
+    /**
+     * Repair individual to satisfy constraints
+     */
+    repairIndividual(individual) {
+        // Clamp mu and nu to bounds
+        individual.mu = Math.max(this.muBounds[0], Math.min(this.muBounds[1], individual.mu));
+        individual.nu = Math.max(this.nuBounds[0], Math.min(this.nuBounds[1], individual.nu));
+
+        // Find closest valid H value
+        const targetH = Math.max(this.HBounds[0], Math.min(this.HBounds[1], individual.H));
+        individual.H = this.validHValues.reduce((prev, curr) =>
+            Math.abs(curr - targetH) < Math.abs(prev - targetH) ? curr : prev
+        );
+
+        return individual;
+    }
+}
+
+class GeneticOperators {
+    constructor(crossoverProbability = 0.9, mutationProbability = 0.1) {
+        this.crossoverProbability = crossoverProbability;
+        this.mutationProbability = mutationProbability;
+        this.bounds = new ParameterBounds();
+    }
+
+    /**
+     * Simulated Binary Crossover (SBX)
+     */
+    crossover(parent1, parent2) {
+        if (Math.random() > this.crossoverProbability) {
+            return [parent1.clone(), parent2.clone()];
+        }
+
+        const eta = 20; // Distribution index
+        const offspring1 = parent1.clone();
+        const offspring2 = parent2.clone();
+
+        const params1 = parent1.getParameters();
+        const params2 = parent2.getParameters();
+
+        for (let i = 0; i < 2; i++) { // Only crossover mu and nu (not H)
+            if (Math.random() <= 0.5) {
+                const y1 = params1[i];
+                const y2 = params2[i];
+
+                if (Math.abs(y1 - y2) > 1e-14) {
+                    const lb = i === 0 ? this.bounds.muBounds[0] : this.bounds.nuBounds[0];
+                    const ub = i === 0 ? this.bounds.muBounds[1] : this.bounds.nuBounds[1];
+
+                    const rand = Math.random();
+                    const beta = this.getBeta(rand, eta, y1, y2, lb, ub);
+
+                    const c1 = 0.5 * (y1 + y2 - beta * Math.abs(y2 - y1));
+                    const c2 = 0.5 * (y1 + y2 + beta * Math.abs(y2 - y1));
+
+                    params1[i] = Math.max(lb, Math.min(ub, c1));
+                    params2[i] = Math.max(lb, Math.min(ub, c2));
+                }
+            }
+        }
+
+        // Handle H crossover (discrete)
+        if (Math.random() <= 0.5) {
+            [params1[2], params2[2]] = [params2[2], params1[2]];
+        }
+
+        offspring1.setParameters(params1);
+        offspring2.setParameters(params2);
+
+        return [
+            this.bounds.repairIndividual(offspring1),
+            this.bounds.repairIndividual(offspring2)
+        ];
+    }
+
+    /**
+     * Calculate beta for SBX crossover
+     */
+    getBeta(rand, eta, y1, y2, lb, ub) {
+        let beta;
+        if (rand <= 0.5) {
+            const alpha = 2.0 - Math.pow(2.0 * rand, -(eta + 1.0));
+            beta = Math.pow(alpha, 1.0 / (eta + 1.0));
+        } else {
+            const alpha = 2.0 - Math.pow(2.0 * (1.0 - rand), -(eta + 1.0));
+            beta = Math.pow(1.0 / alpha, 1.0 / (eta + 1.0));
+        }
+        return beta;
+    }
+
+    /**
+     * Polynomial mutation
+     */
+    mutate(individual) {
+        const mutated = individual.clone();
+        const eta = 20; // Distribution index
+        const params = mutated.getParameters();
+
+        for (let i = 0; i < 2; i++) { // Only mutate mu and nu
+            if (Math.random() <= this.mutationProbability) {
+                const y = params[i];
+                const lb = i === 0 ? this.bounds.muBounds[0] : this.bounds.nuBounds[0];
+                const ub = i === 0 ? this.bounds.muBounds[1] : this.bounds.nuBounds[1];
+
+                const delta1 = (y - lb) / (ub - lb);
+                const delta2 = (ub - y) / (ub - lb);
+
+                const rand = Math.random();
+                let mutPow, deltaq;
+
+                if (rand <= 0.5) {
+                    const xy = 1.0 - delta1;
+                    const val = 2.0 * rand + (1.0 - 2.0 * rand) * Math.pow(xy, eta + 1.0);
+                    deltaq = Math.pow(val, 1.0 / (eta + 1.0)) - 1.0;
+                } else {
+                    const xy = 1.0 - delta2;
+                    const val = 2.0 * (1.0 - rand) + 2.0 * (rand - 0.5) * Math.pow(xy, eta + 1.0);
+                    deltaq = 1.0 - Math.pow(val, 1.0 / (eta + 1.0));
+                }
+
+                params[i] = y + deltaq * (ub - lb);
+                params[i] = Math.max(lb, Math.min(ub, params[i]));
+            }
+        }
+
+        // Mutate H (discrete)
+        if (Math.random() <= this.mutationProbability) {
+            const currentIndex = this.bounds.validHValues.indexOf(params[2]);
+            const maxShift = Math.min(5, this.bounds.validHValues.length - 1);
+            const shift = Math.floor(Math.random() * (2 * maxShift + 1)) - maxShift;
+            const newIndex = Math.max(0, Math.min(this.bounds.validHValues.length - 1, currentIndex + shift));
+            params[2] = this.bounds.validHValues[newIndex];
+        }
+
+        mutated.setParameters(params);
+        return this.bounds.repairIndividual(mutated);
+    }
+
+    /**
+     * Tournament selection
+     */
+    tournamentSelection(population, tournamentSize = 3) {
+        const tournament = [];
+
+        for (let i = 0; i < tournamentSize; i++) {
+            tournament.push(population[Math.floor(Math.random() * population.length)]);
+        }
+
+        // Select best individual from tournament based on rank and crowding distance
+        tournament.sort((a, b) => {
+            if (a.rank !== b.rank) {
+                return a.rank - b.rank; // Lower rank is better
+            }
+            return b.crowdingDistance - a.crowdingDistance; // Higher crowding distance is better
+        });
+
+        return tournament[0].clone();
+    }
+}
+
+class TaikoFeeEvaluator {
+    constructor(weights, simulationParams) {
+        this.weights = weights || this.getDefaultWeights();
+        this.simulationParams = simulationParams || this.getDefaultSimulationParams();
+    }
+
+    getDefaultWeights() {
+        return {
+            w1_fee_affordability: 0.40,
+            w2_fee_stability: 0.30,
+            w3_fee_predictability_1h: 0.20,
+            w4_fee_predictability_6h: 0.10,
+            w5_insolvency_protection: 0.40,
+            w6_deficit_duration: 0.30,
+            w7_vault_stress: 0.20,
+            w8_continuous_underfunding: 0.10,
+            w9_vault_utilization: 0.40,
+            w10_deficit_correction: 0.30,
+            w11_capital_efficiency: 0.30
+        };
+    }
+
+    getDefaultSimulationParams() {
+        return {
+            target_balance: 1000.0,
+            base_demand: 100,
+            fee_elasticity: 0.2,
+            gas_per_batch: 200000,
+            txs_per_batch: 100,
+            batch_frequency: 0.1,
+            time_step_seconds: 2,
+            total_steps: 500
+        };
+    }
+
+    /**
+     * Evaluate an individual's fitness across all objectives
+     */
+    async evaluate(individual) {
+        const startTime = Date.now();
+
+        try {
+            // Run simulation with individual's parameters
+            const simulationResults = await this.runSimulation(individual);
+
+            // Calculate composite scores
+            const scores = this.calculateCompositeScores(simulationResults);
+
+            // Update individual with scores
+            individual.uxScore = scores.uxScore;
+            individual.safetyScore = scores.safetyScore;
+            individual.efficiencyScore = scores.efficiencyScore;
+
+            // Check feasibility
+            individual.isFeasible = this.checkFeasibility(simulationResults, individual);
+            individual.constraintViolations = this.countConstraintViolations(simulationResults, individual);
+
+            individual.evaluationTime = Date.now() - startTime;
+
+        } catch (error) {
+            console.warn(`Evaluation failed for (μ=${individual.mu}, ν=${individual.nu}, H=${individual.H}):`, error);
+
+            // Assign worst possible scores
+            individual.uxScore = 0;
+            individual.safetyScore = 0;
+            individual.efficiencyScore = 0;
+            individual.isFeasible = false;
+            individual.constraintViolations = 999;
+            individual.evaluationTime = Date.now() - startTime;
+        }
+
+        return individual;
+    }
+
+    /**
+     * Run fee mechanism simulation (placeholder - would integrate with actual simulator)
+     */
+    async runSimulation(individual) {
+        // Simulate some delay for realistic timing
+        await new Promise(resolve => setTimeout(resolve, 10 + Math.random() * 20));
+
+        // Mock simulation results based on parameter values
+        // In production, this would call the actual Taiko fee simulator
+        const steps = this.simulationParams.total_steps;
+
+        const results = {
+            // Mock data generation based on parameters
+            deficit_duration: Math.max(0, (individual.nu - 0.5) * 100 + Math.random() * 20),
+            max_deficit: Math.abs(individual.mu - 0.5) * 500 + Math.random() * 100,
+            fee_volatility: Math.abs(1 - individual.nu) * 0.3 + Math.random() * 0.1,
+            vault_utilization: Math.min(1, individual.nu * 0.8 + Math.random() * 0.4),
+            insolvency_risk: Math.max(0, (1 - individual.nu) * 0.5 + Math.random() * 0.2),
+            steps: steps,
+            H: individual.H
+        };
+
+        return results;
+    }
+
+    /**
+     * Calculate composite scores from simulation results
+     */
+    calculateCompositeScores(results) {
+        const w = this.weights;
+
+        // Mock metric calculations (in production, would use actual metrics)
+        // All metrics normalized to [0, 1] where 1 is best
+
+        // UX Metrics
+        const feeAffordability = Math.max(0, Math.min(1, 1 - results.fee_volatility));
+        const feeStability = Math.max(0, Math.min(1, 1 - results.fee_volatility * 0.8));
+        const feePredictability1h = Math.max(0, Math.min(1, 0.8 - results.fee_volatility * 0.5));
+        const feePredictability6h = Math.max(0, Math.min(1, 0.9 - results.fee_volatility * 0.3));
+
+        // Safety Metrics
+        const insolvencyProtection = Math.max(0, Math.min(1, 1 - results.insolvency_risk));
+        const deficitDuration = Math.max(0, Math.min(1, 1 - results.deficit_duration / 200));
+        const vaultStress = Math.max(0, Math.min(1, results.vault_utilization));
+        const continuousUnderfunding = Math.max(0, Math.min(1, 1 - results.insolvency_risk * 0.7));
+
+        // Efficiency Metrics
+        const vaultUtilization = results.vault_utilization;
+        const deficitCorrection = Math.max(0, Math.min(1, 1 - results.deficit_duration / 100));
+        const capitalEfficiency = Math.max(0, Math.min(1, results.vault_utilization * 0.9 + 0.1));
+
+        // Calculate composite scores
+        const uxScore = (
+            w.w1_fee_affordability * feeAffordability +
+            w.w2_fee_stability * feeStability +
+            w.w3_fee_predictability_1h * feePredictability1h +
+            w.w4_fee_predictability_6h * feePredictability6h
+        );
+
+        const safetyScore = (
+            w.w5_insolvency_protection * insolvencyProtection +
+            w.w6_deficit_duration * deficitDuration +
+            w.w7_vault_stress * vaultStress +
+            w.w8_continuous_underfunding * continuousUnderfunding
+        );
+
+        const efficiencyScore = (
+            w.w9_vault_utilization * vaultUtilization +
+            w.w10_deficit_correction * deficitCorrection +
+            w.w11_capital_efficiency * capitalEfficiency
+        );
+
+        return { uxScore, safetyScore, efficiencyScore };
+    }
+
+    /**
+     * Check if solution satisfies constraints
+     */
+    checkFeasibility(results, individual) {
+        // 6-step alignment constraint
+        if (individual.H % 6 !== 0) return false;
+
+        // Basic safety constraints
+        if (results.insolvency_risk > 0.8) return false;
+        if (results.deficit_duration > 150) return false;
+
+        return true;
+    }
+
+    /**
+     * Count constraint violations
+     */
+    countConstraintViolations(results, individual) {
+        let violations = 0;
+
+        if (individual.H % 6 !== 0) violations++;
+        if (results.insolvency_risk > 0.8) violations++;
+        if (results.deficit_duration > 150) violations++;
+        if (results.vault_utilization < 0.1) violations++;
+
+        return violations;
+    }
+}
+
+class NSGAII {
+    constructor(options = {}) {
+        this.populationSize = options.populationSize || 50;
+        this.maxGenerations = options.maxGenerations || 100;
+        this.weights = options.weights || {};
+
+        this.bounds = new ParameterBounds();
+        this.operators = new GeneticOperators();
+        this.evaluator = new TaikoFeeEvaluator(this.weights);
+
+        this.population = [];
+        this.generation = 0;
+        this.isRunning = false;
+
+        // Callbacks
+        this.onProgress = options.onProgress || (() => {});
+        this.onSolution = options.onSolution || (() => {});
+        this.onComplete = options.onComplete || (() => {});
+    }
+
+    /**
+     * Initialize random population
+     */
+    initializePopulation() {
+        this.population = [];
+        for (let i = 0; i < this.populationSize; i++) {
+            const individual = this.bounds.generateRandomIndividual();
+            individual.generation = 0;
+            this.population.push(individual);
+        }
+    }
+
+    /**
+     * Start the optimization process
+     */
+    async start() {
+        if (this.isRunning) return;
+
+        this.isRunning = true;
+        this.generation = 0;
+
+        console.log('🚀 Starting NSGA-II optimization...');
+
+        // Initialize population
+        this.initializePopulation();
+
+        // Evaluate initial population
+        await this.evaluatePopulation(this.population);
+        this.assignRanksAndCrowdingDistance(this.population);
+
+        // Evolution loop
+        while (this.isRunning && this.generation < this.maxGenerations) {
+            await this.evolveGeneration();
+            this.generation++;
+
+            // Report progress
+            const paretoFront = this.getParetoFront();
+            this.onProgress({
+                generation: this.generation,
+                maxGenerations: this.maxGenerations,
+                populationSize: this.population.length,
+                paretoFrontSize: paretoFront.length,
+                bestSolutions: paretoFront.slice(0, 3)
+            });
+
+            // Report new solutions
+            paretoFront.forEach(solution => {
+                if (solution.generation === this.generation) {
+                    this.onSolution(solution);
+                }
+            });
+        }
+
+        this.isRunning = false;
+
+        // Final results
+        const finalResults = {
+            generation: this.generation,
+            population: this.population,
+            paretoFront: this.getParetoFront(),
+            stats: this.getOptimizationStats()
+        };
+
+        this.onComplete(finalResults);
+        console.log('✅ NSGA-II optimization completed');
+
+        return finalResults;
+    }
+
+    /**
+     * Stop the optimization
+     */
+    stop() {
+        this.isRunning = false;
+        console.log('⏹️ NSGA-II optimization stopped');
+    }
+
+    /**
+     * Evolve one generation
+     */
+    async evolveGeneration() {
+        // Generate offspring through selection, crossover, and mutation
+        const offspring = [];
+
+        while (offspring.length < this.populationSize) {
+            // Tournament selection
+            const parent1 = this.operators.tournamentSelection(this.population);
+            const parent2 = this.operators.tournamentSelection(this.population);
+
+            // Crossover
+            const [child1, child2] = this.operators.crossover(parent1, parent2);
+
+            // Mutation
+            const mutatedChild1 = this.operators.mutate(child1);
+            const mutatedChild2 = this.operators.mutate(child2);
+
+            mutatedChild1.generation = this.generation + 1;
+            mutatedChild2.generation = this.generation + 1;
+
+            offspring.push(mutatedChild1);
+            if (offspring.length < this.populationSize) {
+                offspring.push(mutatedChild2);
+            }
+        }
+
+        // Evaluate offspring
+        await this.evaluatePopulation(offspring);
+
+        // Combine parent and offspring populations
+        const combined = [...this.population, ...offspring];
+
+        // Non-dominated sorting and crowding distance
+        this.assignRanksAndCrowdingDistance(combined);
+
+        // Environmental selection (select best N individuals)
+        this.population = this.environmentalSelection(combined, this.populationSize);
+    }
+
+    /**
+     * Evaluate population in parallel
+     */
+    async evaluatePopulation(population) {
+        const evaluationPromises = population.map(individual =>
+            this.evaluator.evaluate(individual)
+        );
+
+        await Promise.all(evaluationPromises);
+    }
+
+    /**
+     * Non-dominated sorting and crowding distance assignment
+     */
+    assignRanksAndCrowdingDistance(population) {
+        // Reset attributes
+        population.forEach(individual => {
+            individual.dominationCount = 0;
+            individual.dominatedSolutions = [];
+            individual.rank = null;
+            individual.crowdingDistance = 0;
+        });
+
+        // Fast non-dominated sorting
+        const fronts = [[]];
+
+        for (let i = 0; i < population.length; i++) {
+            const p = population[i];
+
+            for (let j = 0; j < population.length; j++) {
+                if (i === j) continue;
+
+                const q = population[j];
+
+                if (p.dominates(q)) {
+                    p.dominatedSolutions.push(q);
+                } else if (q.dominates(p)) {
+                    p.dominationCount++;
+                }
+            }
+
+            if (p.dominationCount === 0) {
+                p.rank = 0;
+                fronts[0].push(p);
+            }
+        }
+
+        let frontIndex = 0;
+        while (fronts[frontIndex].length > 0) {
+            const nextFront = [];
+
+            for (const p of fronts[frontIndex]) {
+                for (const q of p.dominatedSolutions) {
+                    q.dominationCount--;
+                    if (q.dominationCount === 0) {
+                        q.rank = frontIndex + 1;
+                        nextFront.push(q);
+                    }
+                }
+            }
+
+            frontIndex++;
+            fronts.push(nextFront);
+        }
+
+        // Calculate crowding distance for each front
+        fronts.forEach(front => {
+            if (front.length > 0) {
+                this.calculateCrowdingDistance(front);
+            }
+        });
+    }
+
+    /**
+     * Calculate crowding distance for a front
+     */
+    calculateCrowdingDistance(front) {
+        const objectives = ['uxScore', 'safetyScore', 'efficiencyScore'];
+
+        front.forEach(individual => {
+            individual.crowdingDistance = 0;
+        });
+
+        objectives.forEach(objective => {
+            // Sort by objective value
+            front.sort((a, b) => a[objective] - b[objective]);
+
+            // Set boundary points to infinity
+            front[0].crowdingDistance = Infinity;
+            front[front.length - 1].crowdingDistance = Infinity;
+
+            // Calculate distances for intermediate points
+            const objectiveRange = front[front.length - 1][objective] - front[0][objective];
+
+            if (objectiveRange > 0) {
+                for (let i = 1; i < front.length - 1; i++) {
+                    front[i].crowdingDistance +=
+                        (front[i + 1][objective] - front[i - 1][objective]) / objectiveRange;
+                }
+            }
+        });
+    }
+
+    /**
+     * Environmental selection to maintain population size
+     */
+    environmentalSelection(population, targetSize) {
+        // Sort by rank first, then by crowding distance
+        population.sort((a, b) => {
+            if (a.rank !== b.rank) {
+                return a.rank - b.rank;
+            }
+            return b.crowdingDistance - a.crowdingDistance;
+        });
+
+        return population.slice(0, targetSize);
+    }
+
+    /**
+     * Get current Pareto front (rank 0 individuals)
+     */
+    getParetoFront() {
+        return this.population.filter(individual => individual.rank === 0);
+    }
+
+    /**
+     * Get optimization statistics
+     */
+    getOptimizationStats() {
+        const paretoFront = this.getParetoFront();
+
+        const stats = {
+            generations: this.generation,
+            populationSize: this.population.length,
+            paretoFrontSize: paretoFront.length,
+            feasibleSolutions: this.population.filter(ind => ind.isFeasible).length,
+            averageEvaluationTime: this.population.reduce((sum, ind) => sum + ind.evaluationTime, 0) / this.population.length
+        };
+
+        if (paretoFront.length > 0) {
+            stats.bestUX = Math.max(...paretoFront.map(ind => ind.uxScore));
+            stats.bestSafety = Math.max(...paretoFront.map(ind => ind.safetyScore));
+            stats.bestEfficiency = Math.max(...paretoFront.map(ind => ind.efficiencyScore));
+        }
+
+        return stats;
+    }
+}
+
+// Export for module usage
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { NSGAII, Individual, TaikoFeeEvaluator };
+}
+
+// Make available globally
+window.NSGAII = NSGAII;
+window.Individual = Individual;
+window.TaikoFeeEvaluator = TaikoFeeEvaluator;
