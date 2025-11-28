@@ -1743,6 +1743,19 @@ class OptimizationResearchController {
         this.updateOptimizationUI(true);
 
         try {
+            // Initialize historical data if not already loaded
+            if (!window.historicalDataLoader || !window.historicalDataLoader.loaded) {
+                const progressText = document.querySelector('#progress-status');
+                if (progressText) progressText.textContent = 'Loading historical datasets...';
+
+                const loadSuccess = await window.historicalDataLoader.loadAllDatasets();
+                if (!loadSuccess) {
+                    throw new Error('Failed to load historical datasets');
+                }
+
+                if (progressText) progressText.textContent = 'Historical datasets loaded successfully';
+            }
+
             // Get current algorithm parameters from sliders
             const algorithmParams = this.getCurrentAlgorithmParameters();
 
@@ -1788,8 +1801,24 @@ class OptimizationResearchController {
     handleOptimizationProgress(progress) {
         console.log(`📊 Generation ${progress.generation}/${progress.maxGenerations}, Pareto Front: ${progress.paretoFrontSize}`);
 
-        // Update progress bar
-        this.updateProgress(progress.generation, progress.maxGenerations);
+        // Calculate detailed progress
+        let detailedProgress = progress.generation;
+        let statusText = `Generation ${progress.generation}/${progress.maxGenerations}`;
+
+        // If we're in evaluation phase, show more granular progress
+        if (progress.evaluating && progress.evaluationProgress) {
+            detailedProgress = progress.generation - 1 + progress.evaluationProgress;
+            statusText = progress.phase || `Generation ${progress.generation} - Evaluating...`;
+        }
+
+        // Update progress bar with detailed progress
+        this.updateProgress(detailedProgress, progress.maxGenerations);
+
+        // Update status text
+        const progressText = document.querySelector('#progress-status');
+        if (progressText) {
+            progressText.textContent = statusText;
+        }
 
         // Update progress stats
         const solutionsCount = document.querySelector('#solutions-count');

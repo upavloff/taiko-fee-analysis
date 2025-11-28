@@ -302,7 +302,7 @@ class TaikoFeeSimulator {
     }
 
     getNextL1Basefee() {
-        if (this.l1Source === 'historical' && this.historicalData) {
+        if (this.l1Source === 'historical' && this.historicalData && this.historicalData.length > 0) {
             // Use modulo to cycle through historical data
             const dataPoint = this.historicalData[this.historicalIndex % this.historicalData.length];
             const basefeeGwei = dataPoint.basefee_wei / 1e9;
@@ -330,7 +330,7 @@ class TaikoFeeSimulator {
         }
 
         // For historical data, use the full length of available data instead of fixed steps
-        const actualSteps = (this.l1Source === 'historical' && this.historicalData)
+        const actualSteps = (this.l1Source === 'historical' && this.historicalData && this.historicalData.length > 0)
             ? this.historicalData.length
             : steps;
 
@@ -343,7 +343,7 @@ class TaikoFeeSimulator {
             let l2ElapsedSeconds; // Taiko step spacing (2s)
             let timestampLabel = null;
 
-            if (this.l1Source === 'historical' && this.historicalData) {
+            if (this.l1Source === 'historical' && this.historicalData && this.historicalData.length > 0) {
                 const dataPoint = this.historicalData[this.historicalIndex % this.historicalData.length];
                 l1Basefee = dataPoint.basefee_wei;
                 timestampLabel = dataPoint.timestamp;

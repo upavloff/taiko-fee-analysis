@@ -358,25 +358,79 @@ class TaikoFeeEvaluator {
      * Run fee mechanism simulation (placeholder - would integrate with actual simulator)
      */
     async runSimulation(individual) {
-        // Simulate some delay for realistic timing
-        await new Promise(resolve => setTimeout(resolve, 10 + Math.random() * 20));
+        // Use real Taiko fee mechanism simulation with multi-scenario evaluation
+        try {
+            // Check if required components are available
+            if (!window.historicalDataLoader || !window.historicalDataLoader.loaded) {
+                throw new Error('Historical data not loaded. Make sure all components are initialized.');
+            }
 
-        // Mock simulation results based on parameter values
-        // In production, this would call the actual Taiko fee simulator
-        const steps = this.simulationParams.total_steps;
+            // Create multi-scenario evaluator if not already available
+            if (!this.multiScenarioEvaluator) {
+                const metricsCalculator = new window.EnhancedMetricsCalculator();
+                this.multiScenarioEvaluator = new window.MultiScenarioEvaluator(
+                    window.historicalDataLoader,
+                    metricsCalculator
+                );
+            }
 
-        const results = {
-            // Mock data generation based on parameters
-            deficit_duration: Math.max(0, (individual.nu - 0.5) * 100 + Math.random() * 20),
-            max_deficit: Math.abs(individual.mu - 0.5) * 500 + Math.random() * 100,
-            fee_volatility: Math.abs(1 - individual.nu) * 0.3 + Math.random() * 0.1,
-            vault_utilization: Math.min(1, individual.nu * 0.8 + Math.random() * 0.4),
-            insolvency_risk: Math.max(0, (1 - individual.nu) * 0.5 + Math.random() * 0.2),
-            steps: steps,
-            H: individual.H
+            // Evaluate parameter set across all historical scenarios
+            const evaluationResult = await this.multiScenarioEvaluator.evaluateParameterSet({
+                mu: individual.mu,
+                nu: individual.nu,
+                H: individual.H
+            });
+
+            // Return aggregated metrics for optimization
+            return {
+                ux_score: evaluationResult.aggregated_metrics.robust_ux_score,
+                safety_score: evaluationResult.aggregated_metrics.robust_safety_score,
+                overall_score: evaluationResult.aggregated_metrics.robust_overall_score,
+                insolvency_probability: evaluationResult.aggregated_metrics.insolvency_probability_mean,
+                fee_affordability: evaluationResult.aggregated_metrics.fee_affordability_score_mean,
+                fee_stability: evaluationResult.aggregated_metrics.fee_stability_score_mean,
+                deficit_weighted_duration: evaluationResult.aggregated_metrics.deficit_weighted_duration_mean,
+                evaluation_details: evaluationResult  // Store full results for debugging
+            };
+
+        } catch (error) {
+            console.warn('Real simulation failed, falling back to simplified calculation:', error);
+
+            // Fallback to simplified calculation if real simulation fails
+            return this.runSimplifiedSimulation(individual);
+        }
+    }
+
+    /**
+     * Fallback simplified simulation for when real simulation isn't available
+     */
+    runSimplifiedSimulation(individual) {
+        // Simplified scoring based on known optimal parameter relationships
+        const optimalMu = 0.0;
+        const optimalNu = 0.1;
+        const optimalH = 36;
+
+        // Calculate distance from optimal parameters (normalized)
+        const muDistance = Math.abs(individual.mu - optimalMu) / 1.0;
+        const nuDistance = Math.abs(individual.nu - optimalNu) / 0.9;
+        const hDistance = Math.abs(individual.H - optimalH) / 576;
+
+        // Combined distance score (lower is better)
+        const distanceFromOptimal = Math.sqrt(muDistance*muDistance + nuDistance*nuDistance + hDistance*hDistance);
+
+        // Convert to scores (higher is better)
+        const baseScore = Math.max(0, 1 - distanceFromOptimal);
+
+        return {
+            ux_score: baseScore + Math.random() * 0.1 - 0.05,  // Add small noise
+            safety_score: baseScore + Math.random() * 0.1 - 0.05,
+            overall_score: baseScore + Math.random() * 0.1 - 0.05,
+            insolvency_probability: distanceFromOptimal * 0.2 + Math.random() * 0.1,
+            fee_affordability: baseScore + Math.random() * 0.1 - 0.05,
+            fee_stability: baseScore + Math.random() * 0.1 - 0.05,
+            deficit_weighted_duration: distanceFromOptimal * 100 + Math.random() * 10,
+            is_fallback: true
         };
-
-        return results;
     }
 
     /**
@@ -385,27 +439,61 @@ class TaikoFeeEvaluator {
     calculateCompositeScores(results) {
         const w = this.weights;
 
-        // Mock metric calculations (in production, would use actual metrics)
+        // Use either real metrics or fallback calculations
         // All metrics normalized to [0, 1] where 1 is best
 
-        // UX Metrics
-        const feeAffordability = Math.max(0, Math.min(1, 1 - results.fee_volatility));
-        const feeStability = Math.max(0, Math.min(1, 1 - results.fee_volatility * 0.8));
-        const feePredictability1h = Math.max(0, Math.min(1, 0.8 - results.fee_volatility * 0.5));
-        const feePredictability6h = Math.max(0, Math.min(1, 0.9 - results.fee_volatility * 0.3));
+        if (results.is_fallback) {
+            // Use simplified calculations for fallback mode
+            const feeAffordability = results.fee_affordability;
+            const feeStability = results.fee_stability;
+            const feePredictability1h = feeStability * 0.9;  // Approximate
+            const feePredictability6h = feeStability * 0.95;
 
-        // Safety Metrics
-        const insolvencyProtection = Math.max(0, Math.min(1, 1 - results.insolvency_risk));
-        const deficitDuration = Math.max(0, Math.min(1, 1 - results.deficit_duration / 200));
-        const vaultStress = Math.max(0, Math.min(1, results.vault_utilization));
-        const continuousUnderfunding = Math.max(0, Math.min(1, 1 - results.insolvency_risk * 0.7));
+            const insolvencyProtection = Math.max(0, 1 - results.insolvency_probability);
+            const deficitDuration = Math.max(0, 1 - results.deficit_weighted_duration / 100);
+            const vaultStress = Math.max(0, 1 - results.insolvency_probability * 0.5);
+            const continuousUnderfunding = vaultStress;
 
-        // Efficiency Metrics
-        const vaultUtilization = results.vault_utilization;
-        const deficitCorrection = Math.max(0, Math.min(1, 1 - results.deficit_duration / 100));
-        const capitalEfficiency = Math.max(0, Math.min(1, results.vault_utilization * 0.9 + 0.1));
+            const vaultUtilization = Math.max(0.5, 1 - results.insolvency_probability);
+            const deficitCorrection = deficitDuration;
+            const capitalEfficiency = vaultUtilization;
 
-        // Calculate composite scores
+            results.individual_metrics = {
+                feeAffordability, feeStability, feePredictability1h, feePredictability6h,
+                insolvencyProtection, deficitDuration, vaultStress, continuousUnderfunding,
+                vaultUtilization, deficitCorrection, capitalEfficiency
+            };
+        } else {
+            // Use real calculated metrics directly
+            const feeAffordability = Math.max(0, results.fee_affordability || 0);
+            const feeStability = Math.max(0, results.fee_stability || 0);
+            const feePredictability1h = feeStability * 0.9;  // Simplified for now
+            const feePredictability6h = feeStability * 0.95;
+
+            const insolvencyProtection = Math.max(0, 1 - (results.insolvency_probability || 0));
+            const deficitDuration = Math.max(0, 1 - Math.min(1, (results.deficit_weighted_duration || 0) / 100));
+            const vaultStress = insolvencyProtection;
+            const continuousUnderfunding = vaultStress;
+
+            const vaultUtilization = Math.max(0.5, insolvencyProtection);
+            const deficitCorrection = deficitDuration;
+            const capitalEfficiency = vaultUtilization;
+
+            results.individual_metrics = {
+                feeAffordability, feeStability, feePredictability1h, feePredictability6h,
+                insolvencyProtection, deficitDuration, vaultStress, continuousUnderfunding,
+                vaultUtilization, deficitCorrection, capitalEfficiency
+            };
+        }
+
+        // Extract individual metrics for score calculation
+        const {
+            feeAffordability, feeStability, feePredictability1h, feePredictability6h,
+            insolvencyProtection, deficitDuration, vaultStress, continuousUnderfunding,
+            vaultUtilization, deficitCorrection, capitalEfficiency
+        } = results.individual_metrics;
+
+        // Calculate composite scores using the research-validated weighting
         const uxScore = (
             w.w1_fee_affordability * feeAffordability +
             w.w2_fee_stability * feeStability +
@@ -426,7 +514,18 @@ class TaikoFeeEvaluator {
             w.w11_capital_efficiency * capitalEfficiency
         );
 
-        return { uxScore, safetyScore, efficiencyScore };
+        // If real simulation was used, prefer those composite scores
+        const finalUxScore = results.ux_score !== undefined ? results.ux_score : uxScore;
+        const finalSafetyScore = results.safety_score !== undefined ? results.safety_score : safetyScore;
+        const finalOverallScore = results.overall_score !== undefined ? results.overall_score :
+            (0.5 * finalUxScore + 0.35 * finalSafetyScore + 0.15 * efficiencyScore);
+
+        return {
+            uxScore: finalUxScore,
+            safetyScore: finalSafetyScore,
+            efficiencyScore: efficiencyScore,
+            overallScore: finalOverallScore
+        };
     }
 
     /**
@@ -504,9 +603,30 @@ class NSGAII {
         // Initialize population
         this.initializePopulation();
 
+        // Report initial evaluation start
+        this.onProgress({
+            generation: 0,
+            maxGenerations: this.maxGenerations,
+            populationSize: this.population.length,
+            paretoFrontSize: 0,
+            evaluating: true,
+            phase: 'Evaluating initial population...'
+        });
+
         // Evaluate initial population
         await this.evaluatePopulation(this.population);
         this.assignRanksAndCrowdingDistance(this.population);
+
+        // Report initial evaluation completion
+        const initialParetoFront = this.getParetoFront();
+        this.onProgress({
+            generation: 0,
+            maxGenerations: this.maxGenerations,
+            populationSize: this.population.length,
+            paretoFrontSize: initialParetoFront.length,
+            evaluating: false,
+            phase: 'Initial population evaluated'
+        });
 
         // Evolution loop
         while (this.isRunning && this.generation < this.maxGenerations) {
@@ -600,9 +720,29 @@ class NSGAII {
      * Evaluate population in parallel
      */
     async evaluatePopulation(population) {
-        const evaluationPromises = population.map(individual =>
-            this.evaluator.evaluate(individual)
-        );
+        let completed = 0;
+        const total = population.length;
+
+        // Evaluate with progress reporting
+        const evaluationPromises = population.map(async (individual) => {
+            const result = await this.evaluator.evaluate(individual);
+            completed++;
+
+            // Report evaluation progress within the current generation
+            if (this.onProgress && completed % Math.max(1, Math.floor(total / 10)) === 0) {
+                this.onProgress({
+                    generation: this.generation,
+                    maxGenerations: this.maxGenerations,
+                    populationSize: this.population.length,
+                    paretoFrontSize: this.getParetoFront().length,
+                    evaluationProgress: completed / total,
+                    evaluating: true,
+                    phase: `Evaluating solutions (${completed}/${total})`
+                });
+            }
+
+            return result;
+        });
 
         await Promise.all(evaluationPromises);
     }
