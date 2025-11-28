@@ -402,18 +402,12 @@ class ParetoVisualizer {
      * Handle mouse clicks for selection
      */
     onMouseClick(event) {
-        console.log('🖱️ Mouse clicked on 3D visualization');
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-        console.log('📍 Mouse coords:', this.mouse.x, this.mouse.y);
-        console.log('🎯 Intersection objects available:', this.intersectionObjects.length);
-
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObjects(this.intersectionObjects);
-
-        console.log('✨ Intersections found:', intersects.length);
 
         if (intersects.length > 0) {
             const clickedObject = intersects[0].object;
@@ -430,16 +424,11 @@ class ParetoVisualizer {
 
             // Callback
             if (this.onPointSelected) {
-                console.log('📞 Calling onPointSelected callback with:', this.selectedPoint.userData);
                 this.onPointSelected(this.selectedPoint.userData);
-            } else {
-                console.warn('❌ No onPointSelected callback set!');
             }
         } else {
             // Click on empty space - deselect
-            console.log('💫 Clicked on empty space (no intersections)');
             if (this.selectedPoint) {
-                console.log('🔄 Deselecting current point');
                 this.resetPointAppearance(this.selectedPoint);
                 this.selectedPoint = null;
                 this.hideDetailPanel();
@@ -498,6 +487,9 @@ class ParetoVisualizer {
      */
     resetPointAppearance(pointMesh) {
         if (!pointMesh) return;
+
+        // Don't reset appearance of currently selected point to maintain persistent highlighting
+        if (pointMesh === this.selectedPoint) return;
 
         const defaultScale = pointMesh.userData.isParetoOptimal ? 1.2 : 1.0;
 
@@ -563,6 +555,9 @@ class ParetoVisualizer {
     showDetailPanel(solutionData) {
         if (!this.detailPanel || !solutionData) return;
 
+        // Calculate overall score
+        const overallScore = (solutionData.uxScore + solutionData.safetyScore + solutionData.efficiencyScore) / 3;
+
         const content = this.detailPanel.querySelector('.detail-content');
         content.innerHTML = `
             <div class="solution-summary" style="margin-bottom: 16px; padding: 12px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3182ce;">
@@ -571,6 +566,18 @@ class ParetoVisualizer {
                 </div>
                 <div style="font-size: 12px; color: #1e40af;">
                     Generation ${solutionData.generation || 'N/A'}
+                </div>
+            </div>
+
+            <div class="overall-score" style="margin-bottom: 16px; padding: 12px; background: #f0fff4; border-radius: 8px; border-left: 4px solid #38a169; text-align: center;">
+                <div style="font-size: 11px; color: #2f855a; font-weight: 500; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Overall Performance Score
+                </div>
+                <div style="font-size: 24px; font-weight: 700; color: #22543d;">
+                    ${overallScore.toFixed(4)}
+                </div>
+                <div style="font-size: 11px; color: #2f855a; margin-top: 2px;">
+                    Average of UX, Safety & Efficiency
                 </div>
             </div>
 
@@ -683,7 +690,6 @@ class ParetoVisualizer {
 
         // Register for interaction
         this.intersectionObjects.push(sphere);
-        console.log('✨ Added solution point to 3D visualization. Total intersection objects:', this.intersectionObjects.length);
 
         if (isParetoOptimal) {
             this.paretoPoints.push(sphere);
@@ -1177,7 +1183,6 @@ class ParetoVisualizer {
      * Set callback functions for interaction events
      */
     setCallbacks({ onPointSelected, onPointHovered }) {
-        console.log('📞 Setting callbacks - onPointSelected:', !!onPointSelected, 'onPointHovered:', !!onPointHovered);
         this.onPointSelected = onPointSelected;
         this.onPointHovered = onPointHovered;
     }
@@ -1220,12 +1225,6 @@ class ParetoVisualizer {
             // Select the new point
             this.selectedPoint = matchingPoint;
             this.highlightPoint(matchingPoint, 'selected');
-
-            console.log('🎯 Programmatically selected 3D point:', {
-                mu: targetMu,
-                nu: targetNu,
-                H: targetH
-            });
 
             return true;
         } else {
