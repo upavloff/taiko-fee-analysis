@@ -20,8 +20,172 @@ class OptimizationResearchController {
         this.optimizationEngine = null;
         this.isOptimizing = false;
         this.currentSolutions = [];
+        this.metricDefinitions = this.getMetricDefinitions();
+        this.activeMetricTooltip = null;
 
         this.init();
+    }
+
+    /**
+     * Comprehensive metric definitions with formulas and explanations
+     */
+    getMetricDefinitions() {
+        return {
+            'fee_affordability': {
+                name: 'Fee Affordability',
+                formula: '\\mathcal{A}(f) = -\\log(1 + \\bar{f} \\times 1000)',
+                objectiveVariable: '\\mathcal{A}(f)',
+                explanation: 'Measures how affordable fees are for users by applying a logarithmic penalty to the average fee. Lower average fees result in higher affordability scores.',
+                details: [
+                    '• $\\bar{f}$ is the average fee per gas unit over the simulation period',
+                    '• Multiplied by 1000 to convert from ETH to milli-ETH scale',
+                    '• Logarithmic function ensures diminishing returns - very high fees are severely penalized',
+                    '• Higher scores indicate more affordable fees for users'
+                ],
+                range: 'Range: (-∞, 0], Higher is better',
+                category: 'ux'
+            },
+            'fee_stability': {
+                name: 'Fee Stability',
+                formula: '\\mathcal{S}(f) = 1 - \\text{CV}(f)',
+                objectiveVariable: '\\mathcal{S}(f)',
+                explanation: 'Measures fee consistency by using the coefficient of variation. More stable fees provide better user experience and predictability.',
+                details: [
+                    '• $\\text{CV}(f) = \\frac{\\sigma_f}{\\bar{f}}$ is the coefficient of variation',
+                    '• $\\sigma_f$ is the standard deviation of fees',
+                    '• $\\bar{f}$ is the mean fee level',
+                    '• Subtracting from 1 makes higher values represent better stability'
+                ],
+                range: 'Range: (-∞, 1], Higher is better',
+                category: 'ux'
+            },
+            'fee_predictability_1h': {
+                name: 'Fee Predictability (1h)',
+                formula: '\\mathcal{P}_{1h}(f) = 1 - \\frac{\\text{RMSE}_{1h}}{\\bar{f}}',
+                objectiveVariable: '\\mathcal{P}_{1h}(f)',
+                explanation: 'Measures how well fees can be predicted over a 1-hour window using recent trends. Better predictability helps users plan transactions.',
+                details: [
+                    '• $\\text{RMSE}_{1h}$ is the root mean square error of 1-hour predictions',
+                    '• Uses simple moving average or trend-based prediction',
+                    '• Normalized by mean fee to make it scale-invariant',
+                    '• Higher scores indicate more predictable fee patterns'
+                ],
+                range: 'Range: (-∞, 1], Higher is better',
+                category: 'ux'
+            },
+            'fee_predictability_6h': {
+                name: 'Fee Predictability (6h)',
+                formula: '\\mathcal{P}_{6h}(f) = 1 - \\frac{\\text{RMSE}_{6h}}{\\bar{f}}',
+                objectiveVariable: '\\mathcal{P}_{6h}(f)',
+                explanation: 'Measures how well fees can be predicted over a 6-hour window. Longer-term predictability for strategic transaction timing.',
+                details: [
+                    '• $\\text{RMSE}_{6h}$ is the root mean square error of 6-hour predictions',
+                    '• Uses trend analysis over longer periods',
+                    '• Important for applications that need to plan ahead',
+                    '• Generally lower than 1h predictability due to longer prediction horizon'
+                ],
+                range: 'Range: (-∞, 1], Higher is better',
+                category: 'ux'
+            },
+            'insolvency_protection': {
+                name: 'Insolvency Protection',
+                formula: '\\mathcal{I}(v) = 1 - P(V < V_{\\text{crit}})',
+                objectiveVariable: 'P_{\\text{insol}}',
+                explanation: 'Measures the probability that the vault remains solvent (above critical threshold) throughout the simulation period.',
+                details: [
+                    '• $P(V < V_{\\text{crit}})$ is probability of vault falling below critical level',
+                    '• $V_{\\text{crit}}$ is typically 10% of target vault balance',
+                    '• Insolvency would halt the protocol or require emergency measures',
+                    '• Higher scores indicate better protection against protocol failure'
+                ],
+                range: 'Range: [0, 1], Higher is better',
+                category: 'safety'
+            },
+            'deficit_duration': {
+                name: 'Deficit Duration Control',
+                formula: '\\mathcal{D}(v) = 1 - \\frac{\\sum (d_i \\cdot t_i)^2}{T \\cdot V_{\\text{target}}^2}',
+                objectiveVariable: '\\mathcal{D}_{\\text{weighted}}',
+                explanation: 'Measures how quickly deficits are corrected, with stronger penalties for longer deficit periods.',
+                details: [
+                    '• $d_i$ is the deficit amount at time step $i$',
+                    '• $t_i$ is the duration of deficit period',
+                    '• Squared terms heavily penalize extended deficits',
+                    '• Normalized by total time $T$ and target vault size'
+                ],
+                range: 'Range: (-∞, 1], Higher is better',
+                category: 'safety'
+            },
+            'vault_stress': {
+                name: 'Vault Stress Resilience',
+                formula: '\\mathcal{R}(v) = \\frac{\\Delta V_{\\text{recovery}}}{\\Delta t_{\\text{stress}}}',
+                objectiveVariable: '\\mathcal{R}_{\\text{stress}}',
+                explanation: 'Measures how quickly the vault recovers during high-stress periods (rapid L1 cost increases).',
+                details: [
+                    '• $\\Delta V_{\\text{recovery}}$ is vault balance improvement during stress',
+                    '• $\\Delta t_{\\text{stress}}$ is duration of high-stress period',
+                    '• Stress periods defined as top 10% of L1 cost spikes',
+                    '• Higher values indicate faster stress recovery'
+                ],
+                range: 'Range: [0, +∞), Higher is better',
+                category: 'safety'
+            },
+            'continuous_underfunding': {
+                name: 'Underfunding Resistance',
+                formula: '\\mathcal{U}(v) = 1 - \\frac{T_{\\text{deficit}}}{T_{\\text{total}}}',
+                objectiveVariable: 'P_{\\text{deficit}}',
+                explanation: 'Measures the fraction of time the vault spends in deficit, with penalty for continuous underfunding.',
+                details: [
+                    '• $T_{\\text{deficit}}$ is total time spent below target balance',
+                    '• $T_{\\text{total}}$ is total simulation time',
+                    '• Extended underfunding periods receive additional penalties',
+                    '• Higher scores indicate better maintenance of target balance'
+                ],
+                range: 'Range: [0, 1], Higher is better',
+                category: 'safety'
+            },
+            'vault_utilization': {
+                name: 'Vault Utilization',
+                formula: '\\mathcal{V}(v) = 1 - \\frac{\\overline{|V - V_{\\text{target}}|}}{V_{\\text{target}}}',
+                objectiveVariable: '\\mathcal{U}_{\\text{vault}}',
+                explanation: 'Measures how close the vault balance stays to its optimal target level throughout the simulation.',
+                details: [
+                    '• $\\overline{|V - V_{\\text{target}}|}$ is mean absolute deviation from target',
+                    '• $V_{\\text{target}}$ is the optimal vault balance',
+                    '• Penalizes both over and underfunding equally',
+                    '• Higher scores indicate better capital utilization'
+                ],
+                range: 'Range: (-∞, 1], Higher is better',
+                category: 'efficiency'
+            },
+            'deficit_correction': {
+                name: 'Deficit Correction Rate',
+                formula: '\\mathcal{C}(v) = \\frac{\\sum \\Delta d_i}{\\sum \\Delta t_i}',
+                objectiveVariable: '\\mathcal{C}_{\\text{correction}}',
+                explanation: 'Measures the average rate at which deficits are corrected when they occur.',
+                details: [
+                    '• $\\Delta d_i$ is deficit reduction in period $i$',
+                    '• $\\Delta t_i$ is time duration of correction period',
+                    '• Only considers periods when vault is actively correcting deficits',
+                    '• Higher rates indicate more efficient deficit correction'
+                ],
+                range: 'Range: [0, +∞), Higher is better',
+                category: 'efficiency'
+            },
+            'capital_efficiency': {
+                name: 'Capital Efficiency',
+                formula: '\\mathcal{E}(v) = \\frac{\\text{Coverage}}{\\text{Capital Held}} \\times \\text{Utilization Factor}',
+                objectiveVariable: '\\mathcal{E}_{\\text{capital}}',
+                explanation: 'Measures how effectively the vault uses its capital to provide operational coverage.',
+                details: [
+                    '• Coverage is the total L1 costs successfully covered',
+                    '• Capital Held is the average vault balance maintained',
+                    '• Utilization Factor accounts for idle vs. active capital',
+                    '• Higher efficiency means better capital productivity'
+                ],
+                range: 'Range: [0, +∞), Higher is better',
+                category: 'efficiency'
+            }
+        };
     }
 
     /**
@@ -33,6 +197,7 @@ class OptimizationResearchController {
         this.setupWeightSliders();
         this.setupOptimizationControls();
         this.setupAnimationControls();
+        this.setupMetricTooltips();
         // Don't initialize visualization immediately - wait for tab to be visible
         this.updateLiveFormulas();
         this.updateFormulaDisplay();
@@ -516,6 +681,244 @@ class OptimizationResearchController {
         if (exportBtn) {
             exportBtn.addEventListener('click', () => this.exportResults());
         }
+
+        // Setup algorithm parameter sliders
+        this.setupAlgorithmParameterSliders();
+    }
+
+    /**
+     * Setup algorithm parameter slider controls
+     */
+    setupAlgorithmParameterSliders() {
+        const sliders = [
+            { id: 'population-slider', valueId: 'population-value' },
+            { id: 'generations-slider', valueId: 'generations-value' },
+            { id: 'crossover-slider', valueId: 'crossover-value' },
+            { id: 'mutation-slider', valueId: 'mutation-value' }
+        ];
+
+        sliders.forEach(({ id, valueId }) => {
+            const slider = document.getElementById(id);
+            const valueDisplay = document.getElementById(valueId);
+
+            if (slider && valueDisplay) {
+                slider.addEventListener('input', (event) => {
+                    const value = parseFloat(event.target.value);
+
+                    // Update display with appropriate formatting
+                    if (id === 'crossover-slider' || id === 'mutation-slider') {
+                        valueDisplay.textContent = value.toFixed(2);
+                    } else {
+                        valueDisplay.textContent = value.toString();
+                    }
+
+                    // Log for debugging
+                    console.log(`🔧 Algorithm parameter updated: ${id} = ${value}`);
+                });
+
+                // Initialize display with current value
+                const currentValue = parseFloat(slider.value);
+                if (id === 'crossover-slider' || id === 'mutation-slider') {
+                    valueDisplay.textContent = currentValue.toFixed(2);
+                } else {
+                    valueDisplay.textContent = currentValue.toString();
+                }
+            } else {
+                console.warn(`⚠️ Algorithm slider not found: ${id} or ${valueId}`);
+            }
+        });
+    }
+
+    /**
+     * Get current algorithm parameters from sliders
+     */
+    getCurrentAlgorithmParameters() {
+        const populationSlider = document.getElementById('population-slider');
+        const generationsSlider = document.getElementById('generations-slider');
+        const crossoverSlider = document.getElementById('crossover-slider');
+        const mutationSlider = document.getElementById('mutation-slider');
+
+        return {
+            populationSize: populationSlider ? parseInt(populationSlider.value) : 100,
+            maxGenerations: generationsSlider ? parseInt(generationsSlider.value) : 50,
+            crossoverRate: crossoverSlider ? parseFloat(crossoverSlider.value) : 0.9,
+            mutationRate: mutationSlider ? parseFloat(mutationSlider.value) : 0.1
+        };
+    }
+
+    /**
+     * Setup metric tooltip click handlers
+     */
+    setupMetricTooltips() {
+        // Add click handlers to all metric tags
+        const metricTags = document.querySelectorAll('.clickable-metric');
+
+        metricTags.forEach(tag => {
+            tag.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const metricKey = tag.dataset.metric;
+                this.showMetricTooltip(metricKey, tag);
+            });
+
+            // Add visual cue that it's clickable
+            tag.style.cursor = 'pointer';
+            tag.title = 'Click to see formula and explanation';
+        });
+
+        // Close tooltip when clicking outside
+        document.addEventListener('click', () => {
+            this.hideMetricTooltip();
+        });
+
+        console.log(`🔬 Setup click handlers for ${metricTags.length} metric tags`);
+    }
+
+    /**
+     * Show detailed metric tooltip with formula and explanation
+     */
+    showMetricTooltip(metricKey, targetElement) {
+        const metric = this.metricDefinitions[metricKey];
+        if (!metric) {
+            console.warn(`Metric definition not found: ${metricKey}`);
+            return;
+        }
+
+        // Remove any existing tooltip
+        this.hideMetricTooltip();
+
+        // Create tooltip element
+        const tooltip = document.createElement('div');
+        tooltip.className = 'metric-tooltip';
+        tooltip.innerHTML = `
+            <div class="tooltip-header">
+                <h4>${metric.name}</h4>
+                <button class="tooltip-close">&times;</button>
+            </div>
+            <div class="tooltip-content">
+                <div class="formula-section">
+                    <h5>Mathematical Formula:</h5>
+                    <div class="formula-display" id="tooltip-formula-${metricKey}">
+                        $$${metric.formula}$$
+                    </div>
+                </div>
+                <div class="explanation-section">
+                    <h5>Explanation:</h5>
+                    <p>${metric.explanation}</p>
+                </div>
+                <div class="details-section">
+                    <h5>Technical Details:</h5>
+                    <ul>
+                        ${metric.details.map(detail => `<li>${detail}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="range-section">
+                    <h5>Value Range:</h5>
+                    <p><strong>${metric.range}</strong></p>
+                </div>
+            </div>
+        `;
+
+        // Position tooltip with smart positioning to keep it fully visible
+        const rect = targetElement.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Calculate preferred position
+        let top = rect.bottom + 15;
+        let left = Math.max(20, rect.left - 300);
+
+        // Adjust horizontal position if it would go off-screen
+        const tooltipWidth = 600;
+        if (left + tooltipWidth > viewportWidth - 20) {
+            left = viewportWidth - tooltipWidth - 20;
+        }
+
+        // Adjust vertical position if it would go off-screen
+        const estimatedHeight = 500; // Conservative estimate
+        if (top + estimatedHeight > viewportHeight - 20) {
+            // Position above the element instead
+            top = Math.max(20, rect.top - estimatedHeight - 15);
+        }
+
+        tooltip.style.cssText = `
+            position: fixed;
+            top: ${top}px;
+            left: ${left}px;
+            width: ${tooltipWidth - 40}px;
+            max-width: 90vw;
+            max-height: 80vh;
+            z-index: 10000;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            padding: 0;
+            font-family: system-ui, sans-serif;
+            animation: tooltipFadeIn 0.2s ease-out;
+            overflow-y: auto;
+        `;
+
+        // Add close button handler
+        const closeBtn = tooltip.querySelector('.tooltip-close');
+        closeBtn.addEventListener('click', () => this.hideMetricTooltip());
+
+        document.body.appendChild(tooltip);
+        this.activeMetricTooltip = tooltip;
+
+        // Highlight corresponding formula term
+        this.highlightFormulaVariable(metric.objectiveVariable, metric.category);
+
+        // Render LaTeX if MathJax is available
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            window.MathJax.typesetPromise([tooltip]).catch((err) =>
+                console.warn('MathJax tooltip rendering error:', err)
+            );
+        }
+
+        console.log(`📊 Showing tooltip for ${metric.name}`);
+    }
+
+    /**
+     * Hide the active metric tooltip
+     */
+    hideMetricTooltip() {
+        if (this.activeMetricTooltip) {
+            this.activeMetricTooltip.remove();
+            this.activeMetricTooltip = null;
+
+            // Remove any formula highlighting
+            this.clearFormulaHighlighting();
+        }
+    }
+
+    /**
+     * Highlight the corresponding variable in the objective formula
+     */
+    highlightFormulaVariable(variable, category) {
+        // Clear any existing highlighting first
+        this.clearFormulaHighlighting();
+
+        // Find the formula in the corresponding objective card
+        const categoryCard = document.querySelector(`.${category}-card`);
+        if (!categoryCard) return;
+
+        const formulaContainer = categoryCard.querySelector('.mathematical-formulation');
+        if (!formulaContainer) return;
+
+        // Add highlighting class to the entire formula container
+        formulaContainer.classList.add('formula-highlighted');
+
+        console.log(`✨ Highlighted formula variable ${variable} in ${category} category`);
+    }
+
+    /**
+     * Clear all formula highlighting
+     */
+    clearFormulaHighlighting() {
+        const highlightedFormulas = document.querySelectorAll('.formula-highlighted');
+        highlightedFormulas.forEach(formula => {
+            formula.classList.remove('formula-highlighted');
+        });
     }
 
     /**
@@ -930,16 +1333,23 @@ class OptimizationResearchController {
         this.updateOptimizationUI(true);
 
         try {
-            // Initialize optimization engine if needed
-            if (!this.optimizationEngine && window.NSGAII) {
+            // Get current algorithm parameters from sliders
+            const algorithmParams = this.getCurrentAlgorithmParameters();
+
+            // Initialize or reinitialize optimization engine with current parameters
+            if (window.NSGAII) {
                 this.optimizationEngine = new NSGAII({
-                    populationSize: 30,
-                    maxGenerations: 50,
+                    populationSize: algorithmParams.populationSize,
+                    maxGenerations: algorithmParams.maxGenerations,
+                    crossoverRate: algorithmParams.crossoverRate,
+                    mutationRate: algorithmParams.mutationRate,
                     weights: this.currentWeights,
                     onProgress: (progress) => this.handleOptimizationProgress(progress),
                     onSolution: (solution) => this.handleNewSolution(solution),
                     onComplete: (results) => this.handleOptimizationComplete(results)
                 });
+
+                console.log('🧬 NSGA-II initialized with parameters:', algorithmParams);
             }
 
             // Initialize visualization if needed

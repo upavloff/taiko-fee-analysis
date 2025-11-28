@@ -87,8 +87,8 @@ class ParetoVisualizer {
      */
     setupCamera() {
         const aspect = this.container.clientWidth / this.container.clientHeight;
-        this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
-        this.camera.position.set(3, 3, 3);
+        this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
+        this.camera.position.set(2.5, 2.5, 2.5);
         this.camera.lookAt(0.5, 0.5, 0.5);
     }
 
@@ -123,8 +123,16 @@ class ParetoVisualizer {
             this.controls.enableDamping = true;
             this.controls.dampingFactor = 0.05;
             this.controls.target.set(0.5, 0.5, 0.5);
-            this.controls.minDistance = 1;
-            this.controls.maxDistance = 10;
+            this.controls.minDistance = 1.5;
+            this.controls.maxDistance = 8;
+            this.controls.enableZoom = true;
+            this.controls.enableRotate = true;
+            this.controls.enablePan = true;
+            this.controls.rotateSpeed = 1.0;
+            this.controls.zoomSpeed = 1.2;
+            this.controls.panSpeed = 0.8;
+            this.controls.autoRotate = false;
+            this.controls.autoRotateSpeed = 2.0;
         }
     }
 
@@ -1011,8 +1019,8 @@ class ParetoVisualizer {
     resetCameraPosition(animated = true) {
         if (!this.camera || !this.controls) return;
 
-        const targetPosition = { x: 2, y: 2, z: 2 };
-        const targetTarget = { x: 0, y: 0, z: 0 };
+        const targetPosition = { x: 2.5, y: 2.5, z: 2.5 };
+        const targetTarget = { x: 0.5, y: 0.5, z: 0.5 };
 
         if (animated) {
             // Smooth animation to reset position

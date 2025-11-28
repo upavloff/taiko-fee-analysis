@@ -444,9 +444,9 @@
                                         </div>
                                     </div>
                                     <div class="metrics-preview">
-                                        <span class="metric-tag">💰 Fee Affordability</span>
-                                        <span class="metric-tag">📈 Fee Stability</span>
-                                        <span class="metric-tag">🔮 Predictability</span>
+                                        <span class="metric-tag clickable-metric" data-metric="fee_affordability">💰 Fee Affordability</span>
+                                        <span class="metric-tag clickable-metric" data-metric="fee_stability">📈 Fee Stability</span>
+                                        <span class="metric-tag clickable-metric" data-metric="fee_predictability_1h">🔮 Predictability</span>
                                     </div>
                                 </div>
                             </div>
@@ -465,9 +465,9 @@
                                         </div>
                                     </div>
                                     <div class="metrics-preview">
-                                        <span class="metric-tag">🚨 Insolvency Protection</span>
-                                        <span class="metric-tag">⏰ Deficit Control</span>
-                                        <span class="metric-tag">💪 Resilience</span>
+                                        <span class="metric-tag clickable-metric" data-metric="insolvency_protection">🚨 Insolvency Protection</span>
+                                        <span class="metric-tag clickable-metric" data-metric="deficit_duration">⏰ Deficit Control</span>
+                                        <span class="metric-tag clickable-metric" data-metric="vault_stress">💪 Resilience</span>
                                     </div>
                                 </div>
                             </div>
@@ -486,9 +486,9 @@
                                         </div>
                                     </div>
                                     <div class="metrics-preview">
-                                        <span class="metric-tag">📊 Vault Utilization</span>
-                                        <span class="metric-tag">⚡ Correction Speed</span>
-                                        <span class="metric-tag">🎯 Capital Efficiency</span>
+                                        <span class="metric-tag clickable-metric" data-metric="vault_utilization">📊 Vault Utilization</span>
+                                        <span class="metric-tag clickable-metric" data-metric="deficit_correction">⚡ Correction Speed</span>
+                                        <span class="metric-tag clickable-metric" data-metric="capital_efficiency">🎯 Capital Efficiency</span>
                                     </div>
                                 </div>
                             </div>
@@ -856,6 +856,7 @@
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="simulator.js"></script>
     <script src="charts.js"></script>
     <script src="pareto-visualizer.js"></script>
