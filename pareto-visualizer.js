@@ -454,8 +454,8 @@ class ParetoVisualizer {
     highlightPoint(pointMesh, type = 'hover') {
         if (!pointMesh) return;
 
-        const scale = type === 'selected' ? 2.0 : 1.5;
-        const emissive = type === 'selected' ? 0x444444 : 0x222222;
+        const scale = type === 'selected' ? 2.2 : 1.5;
+        const emissive = type === 'selected' ? 0x00ff88 : 0x888888; // Bright green for selected, light gray for hover
 
         // Scale animation
         const targetScale = scale;
@@ -1167,6 +1167,63 @@ class ParetoVisualizer {
     setCallbacks({ onPointSelected, onPointHovered }) {
         this.onPointSelected = onPointSelected;
         this.onPointHovered = onPointHovered;
+    }
+
+    /**
+     * Programmatically select a point by solution parameters
+     */
+    selectPointBySolution(solution) {
+        // Extract solution parameters with fallback
+        const targetMu = solution.parameters?.mu || solution.mu;
+        const targetNu = solution.parameters?.nu || solution.nu;
+        const targetH = solution.parameters?.horizon || solution.H;
+
+        if (targetMu === undefined || targetNu === undefined || targetH === undefined) {
+            console.warn('Cannot select point: missing solution parameters', solution);
+            return false;
+        }
+
+        // Find matching point in 3D visualization
+        const allPoints = [...this.solutionPoints, ...this.paretoPoints];
+        const matchingPoint = allPoints.find(point => {
+            const pointSolution = point.userData;
+            const pointMu = pointSolution.parameters?.mu || pointSolution.mu;
+            const pointNu = pointSolution.parameters?.nu || pointSolution.nu;
+            const pointH = pointSolution.parameters?.horizon || pointSolution.H;
+
+            // Use small epsilon for floating point comparison
+            const epsilon = 0.0001;
+            return Math.abs(pointMu - targetMu) < epsilon &&
+                   Math.abs(pointNu - targetNu) < epsilon &&
+                   pointH === targetH;
+        });
+
+        if (matchingPoint) {
+            // Reset previous selection
+            if (this.selectedPoint && this.selectedPoint !== matchingPoint) {
+                this.resetPointAppearance(this.selectedPoint);
+            }
+
+            // Select the new point
+            this.selectedPoint = matchingPoint;
+            this.highlightPoint(matchingPoint, 'selected');
+
+            console.log('🎯 Programmatically selected 3D point:', {
+                mu: targetMu,
+                nu: targetNu,
+                H: targetH
+            });
+
+            return true;
+        } else {
+            console.warn('No matching 3D point found for solution:', {
+                mu: targetMu,
+                nu: targetNu,
+                H: targetH,
+                availablePoints: allPoints.length
+            });
+            return false;
+        }
     }
 
     /**

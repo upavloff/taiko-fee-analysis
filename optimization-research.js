@@ -1474,12 +1474,17 @@ class OptimizationResearchController {
     /**
      * Handle point selection in 3D visualization
      */
-    handlePointSelection(solution) {
-        console.log('🎯 Point selected:', solution);
+    handlePointSelection(solution, source = '3d') {
+        console.log('🎯 Point selected:', solution, 'from:', source);
 
         // Update research feedback with selected solution details
         this.highlightSolutionInList(solution);
         this.updateSelectedSolutionMetrics(solution);
+
+        // If selection comes from list, also highlight the 3D point
+        if (source === 'list' && this.paretoVisualizer) {
+            this.paretoVisualizer.selectPointBySolution(solution);
+        }
     }
 
     /**
@@ -2006,7 +2011,7 @@ class OptimizationResearchController {
                     // Mark this item as selected
                     item.classList.add('selected');
                     // Handle selection
-                    this.handlePointSelection(solution);
+                    this.handlePointSelection(solution, 'list');
                     console.log('📊 Solution selected from list:', solution);
                 }
             });
