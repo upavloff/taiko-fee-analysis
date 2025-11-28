@@ -871,6 +871,12 @@ class OptimizationResearchController {
             exportBtn.addEventListener('click', () => this.exportResults());
         }
 
+        // Setup solutions sort dropdown
+        const sortDropdown = document.querySelector('#sort-solutions');
+        if (sortDropdown) {
+            sortDropdown.addEventListener('change', (e) => this.sortSolutions(e.target.value));
+        }
+
         // Setup algorithm parameter sliders
         this.setupAlgorithmParameterSliders();
     }
@@ -1502,7 +1508,7 @@ class OptimizationResearchController {
             const params = item.querySelector('.solution-params strong');
             if (params && params.textContent.includes(`μ=${solution.parameters?.mu?.toFixed(3) || solution.mu?.toFixed(3)}`)) {
                 item.classList.add('selected');
-                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Note: Removed scrollIntoView to prevent unwanted scrolling to duplicates
             }
         });
     }
@@ -2011,6 +2017,77 @@ class OptimizationResearchController {
         });
 
         console.log('📊 Updated solutions list with', solutions.length, 'solutions and click handlers');
+    }
+
+    /**
+     * Sort solutions by specified criteria
+     */
+    sortSolutions(sortBy) {
+        const container = document.querySelector('#solutions-list');
+        if (!container) return;
+
+        // Get current solutions from the DOM
+        const solutionItems = Array.from(container.querySelectorAll('.solution-item'));
+        if (solutionItems.length === 0) return;
+
+        // Extract solution data from DOM elements
+        const solutionsWithElements = solutionItems.map(item => {
+            const paramsText = item.querySelector('.solution-params strong').textContent;
+            const uxText = item.querySelector('.score.ux').textContent;
+            const safetyText = item.querySelector('.score.safety').textContent;
+            const efficiencyText = item.querySelector('.score.efficiency').textContent;
+
+            // Parse parameters from text like "μ=0.123, ν=0.456, H=72"
+            const muMatch = paramsText.match(/μ=([\d.]+)/);
+            const nuMatch = paramsText.match(/ν=([\d.]+)/);
+            const hMatch = paramsText.match(/H=(\d+)/);
+
+            return {
+                element: item,
+                mu: muMatch ? parseFloat(muMatch[1]) : 0,
+                nu: nuMatch ? parseFloat(nuMatch[1]) : 0,
+                H: hMatch ? parseInt(hMatch[1]) : 0,
+                uxScore: parseFloat(uxText.replace('UX: ', '')),
+                safetyScore: parseFloat(safetyText.replace('Safety: ', '')),
+                efficiencyScore: parseFloat(efficiencyText.replace('Efficiency: ', '')),
+                isParetoOptimal: item.classList.contains('pareto-optimal')
+            };
+        });
+
+        // Sort based on criteria
+        let sortedSolutions;
+        switch (sortBy) {
+            case 'dominance':
+                // Sort by Pareto optimal first, then by overall score
+                sortedSolutions = solutionsWithElements.sort((a, b) => {
+                    if (a.isParetoOptimal !== b.isParetoOptimal) {
+                        return b.isParetoOptimal ? 1 : -1; // Pareto optimal first
+                    }
+                    const aOverall = (a.uxScore + a.safetyScore + a.efficiencyScore) / 3;
+                    const bOverall = (b.uxScore + b.safetyScore + b.efficiencyScore) / 3;
+                    return bOverall - aOverall; // Higher scores first
+                });
+                break;
+            case 'ux':
+                sortedSolutions = solutionsWithElements.sort((a, b) => b.uxScore - a.uxScore);
+                break;
+            case 'safety':
+                sortedSolutions = solutionsWithElements.sort((a, b) => b.safetyScore - a.safetyScore);
+                break;
+            case 'efficiency':
+                sortedSolutions = solutionsWithElements.sort((a, b) => b.efficiencyScore - a.efficiencyScore);
+                break;
+            default:
+                sortedSolutions = solutionsWithElements; // No sorting
+        }
+
+        // Re-append elements in sorted order
+        container.innerHTML = ''; // Clear container
+        sortedSolutions.forEach(({ element }) => {
+            container.appendChild(element);
+        });
+
+        console.log(`📊 Solutions sorted by: ${sortBy}`);
     }
 
     /**
