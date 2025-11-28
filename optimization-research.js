@@ -1836,7 +1836,9 @@ class OptimizationResearchController {
                 safetyScore: solution.safetyScore,
                 efficiencyScore: solution.efficiencyScore,
                 isParetoOptimal: solution.rank === 0,
-                parameters: { mu: solution.mu, nu: solution.nu, H: solution.H },
+                mu: solution.mu,
+                nu: solution.nu,
+                H: solution.H,
                 generation: solution.generation
             });
         }
