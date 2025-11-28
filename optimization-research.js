@@ -35,6 +35,7 @@ class OptimizationResearchController {
                 name: 'Fee Affordability',
                 formula: '\\mathcal{A}(f) = -\\log(1 + \\bar{f} \\times 1000)',
                 objectiveVariable: '\\mathcal{A}(f)',
+                highlightText: 'A(f)',
                 explanation: 'Measures how affordable fees are for users by applying a logarithmic penalty to the average fee. Lower average fees result in higher affordability scores.',
                 details: [
                     '• $\\bar{f}$ is the average fee per gas unit over the simulation period',
@@ -49,6 +50,7 @@ class OptimizationResearchController {
                 name: 'Fee Stability',
                 formula: '\\mathcal{S}(f) = 1 - \\text{CV}(f)',
                 objectiveVariable: '\\mathcal{S}(f)',
+                highlightText: 'S(f)',
                 explanation: 'Measures fee consistency by using the coefficient of variation. More stable fees provide better user experience and predictability.',
                 details: [
                     '• $\\text{CV}(f) = \\frac{\\sigma_f}{\\bar{f}}$ is the coefficient of variation',
@@ -63,6 +65,7 @@ class OptimizationResearchController {
                 name: 'Fee Predictability (1h)',
                 formula: '\\mathcal{P}_{1h}(f) = 1 - \\frac{\\text{RMSE}_{1h}}{\\bar{f}}',
                 objectiveVariable: '\\mathcal{P}_{1h}(f)',
+                highlightText: 'P_{1h}(f)',
                 explanation: 'Measures how well fees can be predicted over a 1-hour window using recent trends. Better predictability helps users plan transactions.',
                 details: [
                     '• $\\text{RMSE}_{1h}$ is the root mean square error of 1-hour predictions',
@@ -77,6 +80,7 @@ class OptimizationResearchController {
                 name: 'Fee Predictability (6h)',
                 formula: '\\mathcal{P}_{6h}(f) = 1 - \\frac{\\text{RMSE}_{6h}}{\\bar{f}}',
                 objectiveVariable: '\\mathcal{P}_{6h}(f)',
+                highlightText: 'P_{6h}(f)',
                 explanation: 'Measures how well fees can be predicted over a 6-hour window. Longer-term predictability for strategic transaction timing.',
                 details: [
                     '• $\\text{RMSE}_{6h}$ is the root mean square error of 6-hour predictions',
@@ -91,6 +95,7 @@ class OptimizationResearchController {
                 name: 'Insolvency Protection',
                 formula: '\\mathcal{I}(v) = 1 - P(V < V_{\\text{crit}})',
                 objectiveVariable: 'P_{\\text{insol}}',
+                highlightText: 'insol',
                 explanation: 'Measures the probability that the vault remains solvent (above critical threshold) throughout the simulation period.',
                 details: [
                     '• $P(V < V_{\\text{crit}})$ is probability of vault falling below critical level',
@@ -105,6 +110,7 @@ class OptimizationResearchController {
                 name: 'Deficit Duration Control',
                 formula: '\\mathcal{D}(v) = 1 - \\frac{\\sum (d_i \\cdot t_i)^2}{T \\cdot V_{\\text{target}}^2}',
                 objectiveVariable: '\\mathcal{D}_{\\text{weighted}}',
+                highlightText: 'weighted',
                 explanation: 'Measures how quickly deficits are corrected, with stronger penalties for longer deficit periods.',
                 details: [
                     '• $d_i$ is the deficit amount at time step $i$',
@@ -119,6 +125,7 @@ class OptimizationResearchController {
                 name: 'Vault Stress Resilience',
                 formula: '\\mathcal{R}(v) = \\frac{\\Delta V_{\\text{recovery}}}{\\Delta t_{\\text{stress}}}',
                 objectiveVariable: '\\mathcal{R}_{\\text{stress}}',
+                highlightText: 'stress',
                 explanation: 'Measures how quickly the vault recovers during high-stress periods (rapid L1 cost increases).',
                 details: [
                     '• $\\Delta V_{\\text{recovery}}$ is vault balance improvement during stress',
@@ -133,6 +140,7 @@ class OptimizationResearchController {
                 name: 'Underfunding Resistance',
                 formula: '\\mathcal{U}(v) = 1 - \\frac{T_{\\text{deficit}}}{T_{\\text{total}}}',
                 objectiveVariable: 'P_{\\text{deficit}}',
+                highlightText: 'deficit',
                 explanation: 'Measures the fraction of time the vault spends in deficit, with penalty for continuous underfunding.',
                 details: [
                     '• $T_{\\text{deficit}}$ is total time spent below target balance',
@@ -147,6 +155,7 @@ class OptimizationResearchController {
                 name: 'Vault Utilization',
                 formula: '\\mathcal{V}(v) = 1 - \\frac{\\overline{|V - V_{\\text{target}}|}}{V_{\\text{target}}}',
                 objectiveVariable: '\\mathcal{U}_{\\text{vault}}',
+                highlightText: 'vault',
                 explanation: 'Measures how close the vault balance stays to its optimal target level throughout the simulation.',
                 details: [
                     '• $\\overline{|V - V_{\\text{target}}|}$ is mean absolute deviation from target',
@@ -161,6 +170,7 @@ class OptimizationResearchController {
                 name: 'Deficit Correction Rate',
                 formula: '\\mathcal{C}(v) = \\frac{\\sum \\Delta d_i}{\\sum \\Delta t_i}',
                 objectiveVariable: '\\mathcal{C}_{\\text{correction}}',
+                highlightText: 'correction',
                 explanation: 'Measures the average rate at which deficits are corrected when they occur.',
                 details: [
                     '• $\\Delta d_i$ is deficit reduction in period $i$',
@@ -175,6 +185,7 @@ class OptimizationResearchController {
                 name: 'Capital Efficiency',
                 formula: '\\mathcal{E}(v) = \\frac{\\text{Coverage}}{\\text{Capital Held}} \\times \\text{Utilization Factor}',
                 objectiveVariable: '\\mathcal{E}_{\\text{capital}}',
+                highlightText: 'capital',
                 explanation: 'Measures how effectively the vault uses its capital to provide operational coverage.',
                 details: [
                     '• Coverage is the total L1 costs successfully covered',
@@ -195,6 +206,7 @@ class OptimizationResearchController {
         this.setupTabSwitching();
         this.setupMethodologyPanel();
         this.setupWeightSliders();
+        this.setupWeightPresets();
         this.setupOptimizationControls();
         this.setupAnimationControls();
         this.setupMetricTooltips();
@@ -307,20 +319,15 @@ class OptimizationResearchController {
         const tabContents = document.querySelectorAll('.research-tab-content');
 
         tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
+            button.addEventListener('click', (event) => {
+                // Ensure tab switching always works, even during loading
+                event.stopPropagation();
+                event.preventDefault();
+
                 const targetTab = button.dataset.tab;
 
-                // Update button states
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-
-                // Update content visibility
-                tabContents.forEach(content => {
-                    content.classList.remove('active');
-                    if (content.id === `${targetTab}-tab-content`) {
-                        content.classList.add('active');
-                    }
-                });
+                // Force immediate tab switch (no delays that could be interfered with by loading)
+                this.immediateTabSwitch(targetTab, button, tabButtons, tabContents);
 
                 // Initialize visualization when switching to optimization tab
                 if (targetTab === 'optimization') {
@@ -358,6 +365,31 @@ class OptimizationResearchController {
                 feedbackToggle.classList.toggle('collapsed');
             });
         }
+    }
+
+    /**
+     * Immediately switch tabs without any delays or blocking
+     */
+    immediateTabSwitch(targetTab, activeButton, tabButtons, tabContents) {
+        // Force immediate visual feedback - update button states
+        tabButtons.forEach(btn => {
+            btn.classList.remove('active');
+            btn.style.pointerEvents = 'auto'; // Ensure buttons stay clickable
+        });
+        activeButton.classList.add('active');
+
+        // Force immediate content visibility switch
+        tabContents.forEach(content => {
+            content.classList.remove('active');
+            content.style.display = 'none'; // Force hide immediately
+            if (content.id === `${targetTab}-tab-content`) {
+                content.classList.add('active');
+                content.style.display = 'block'; // Force show immediately
+                content.style.opacity = '1'; // Ensure visibility
+            }
+        });
+
+        console.log(`🔄 Immediately switched to ${targetTab} tab`);
     }
 
     /**
@@ -411,6 +443,163 @@ class OptimizationResearchController {
         });
 
         console.log('🎛️ Current weights:', this.currentWeights);
+    }
+
+    /**
+     * Setup weight preset buttons functionality
+     */
+    setupWeightPresets() {
+        // Define weight presets for different optimization strategies
+        const weightPresets = {
+            'balanced': {
+                name: '⚖️ Balanced',
+                description: 'Equal emphasis on all three objectives',
+                weights: {
+                    // User Experience (emphasis on affordability and stability)
+                    w1_fee_affordability: 0.35,
+                    w2_fee_stability: 0.35,
+                    w3_fee_predictability_1h: 0.20,
+                    w4_fee_predictability_6h: 0.10,
+
+                    // Protocol Safety (emphasis on insolvency protection)
+                    w5_insolvency_protection: 0.40,
+                    w6_deficit_duration: 0.25,
+                    w7_vault_stress: 0.25,
+                    w8_continuous_underfunding: 0.10,
+
+                    // Economic Efficiency (balanced across all metrics)
+                    w9_vault_utilization: 0.35,
+                    w10_deficit_correction: 0.35,
+                    w11_capital_efficiency: 0.30
+                }
+            },
+            'ux-focused': {
+                name: '👥 UX Focused',
+                description: 'Prioritizes user experience - lower fees and predictability',
+                weights: {
+                    // User Experience (maximum emphasis on affordability)
+                    w1_fee_affordability: 0.60,
+                    w2_fee_stability: 0.25,
+                    w3_fee_predictability_1h: 0.10,
+                    w4_fee_predictability_6h: 0.05,
+
+                    // Protocol Safety (minimum viable safety)
+                    w5_insolvency_protection: 0.70,
+                    w6_deficit_duration: 0.15,
+                    w7_vault_stress: 0.10,
+                    w8_continuous_underfunding: 0.05,
+
+                    // Economic Efficiency (focus on capital efficiency)
+                    w9_vault_utilization: 0.20,
+                    w10_deficit_correction: 0.20,
+                    w11_capital_efficiency: 0.60
+                }
+            },
+            'safety-focused': {
+                name: '🛡️ Safety Focused',
+                description: 'Prioritizes protocol safety and stability above all',
+                weights: {
+                    // User Experience (minimal emphasis, basic affordability)
+                    w1_fee_affordability: 0.25,
+                    w2_fee_stability: 0.40,
+                    w3_fee_predictability_1h: 0.25,
+                    w4_fee_predictability_6h: 0.10,
+
+                    // Protocol Safety (maximum emphasis on all safety metrics)
+                    w5_insolvency_protection: 0.35,
+                    w6_deficit_duration: 0.30,
+                    w7_vault_stress: 0.25,
+                    w8_continuous_underfunding: 0.10,
+
+                    // Economic Efficiency (focus on vault stability)
+                    w9_vault_utilization: 0.50,
+                    w10_deficit_correction: 0.30,
+                    w11_capital_efficiency: 0.20
+                }
+            },
+            'efficiency-focused': {
+                name: '💰 Efficiency Focused',
+                description: 'Maximizes economic efficiency and capital utilization',
+                weights: {
+                    // User Experience (efficiency-oriented - stable fees)
+                    w1_fee_affordability: 0.20,
+                    w2_fee_stability: 0.40,
+                    w3_fee_predictability_1h: 0.25,
+                    w4_fee_predictability_6h: 0.15,
+
+                    // Protocol Safety (efficient safety measures)
+                    w5_insolvency_protection: 0.30,
+                    w6_deficit_duration: 0.20,
+                    w7_vault_stress: 0.30,
+                    w8_continuous_underfunding: 0.20,
+
+                    // Economic Efficiency (maximum emphasis on all efficiency metrics)
+                    w9_vault_utilization: 0.25,
+                    w10_deficit_correction: 0.35,
+                    w11_capital_efficiency: 0.40
+                }
+            }
+        };
+
+        // Add click handlers to preset buttons
+        const presetButtons = document.querySelectorAll('.quick-presets .preset-btn');
+        presetButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const presetKey = button.dataset.preset;
+                const preset = weightPresets[presetKey];
+
+                if (preset) {
+                    this.applyWeightPreset(preset);
+                    this.setActivePresetButton(button, presetButtons);
+                    console.log(`🎯 Applied weight preset: ${preset.name}`);
+                } else {
+                    console.warn(`Unknown preset: ${presetKey}`);
+                }
+            });
+        });
+
+        console.log('🎯 Setup weight presets for', presetButtons.length, 'buttons');
+    }
+
+    /**
+     * Apply a weight preset configuration
+     */
+    applyWeightPreset(preset) {
+        // Update internal weights
+        this.currentWeights = { ...preset.weights };
+
+        // Update all sliders to reflect new weights
+        Object.keys(preset.weights).forEach(weightName => {
+            const slider = document.querySelector(`[data-weight="${weightName}"]`);
+            if (slider) {
+                slider.value = preset.weights[weightName];
+                this.updateSliderDisplay(slider);
+            }
+        });
+
+        // Update all category displays
+        ['ux', 'safety', 'efficiency'].forEach(category => {
+            this.updateCategorySliders(category);
+            this.updateCategorySum(category);
+        });
+
+        // Update formulas and prepare for next optimization
+        this.updateLiveFormulas();
+        this.updateFormulaDisplay();
+        this.updateWeightsAndEngine();
+
+        console.log('📊 Applied preset weights:', preset.weights);
+    }
+
+    /**
+     * Set active state for preset button
+     */
+    setActivePresetButton(activeButton, allButtons) {
+        // Remove active state from all buttons
+        allButtons.forEach(btn => btn.classList.remove('active'));
+
+        // Add active state to clicked button
+        activeButton.classList.add('active');
     }
 
     /**
@@ -866,7 +1055,7 @@ class OptimizationResearchController {
         this.activeMetricTooltip = tooltip;
 
         // Highlight corresponding formula term
-        this.highlightFormulaVariable(metric.objectiveVariable, metric.category);
+        this.highlightFormulaVariable(metric.highlightText, metric.category);
 
         // Render LaTeX if MathJax is available
         if (window.MathJax && window.MathJax.typesetPromise) {
@@ -905,20 +1094,114 @@ class OptimizationResearchController {
         const formulaContainer = categoryCard.querySelector('.mathematical-formulation');
         if (!formulaContainer) return;
 
-        // Add highlighting class to the entire formula container
+        // Add highlighting class to the entire formula container for background effect
         formulaContainer.classList.add('formula-highlighted');
 
+        // Now highlight the specific term in red
+        this.highlightSpecificTerm(formulaContainer, variable);
+
         console.log(`✨ Highlighted formula variable ${variable} in ${category} category`);
+    }
+
+    /**
+     * Highlight specific mathematical term in red
+     */
+    highlightSpecificTerm(container, highlightText) {
+        // Wait for MathJax to finish rendering, then find and highlight the term
+        setTimeout(() => {
+            // Find all MathJax rendered elements
+            const mathElements = container.querySelectorAll('.MathJax, .MathJax_Display, [id*="MathJax"]');
+
+            if (mathElements.length === 0) {
+                // Fallback: try to find mathml elements or other math containers
+                const allMathContainers = container.querySelectorAll('*');
+                for (let element of allMathContainers) {
+                    if (element.textContent && element.textContent.includes(highlightText)) {
+                        this.applyRedHighlightToTerm(element, highlightText);
+                        break;
+                    }
+                }
+            } else {
+                // Search through MathJax elements
+                mathElements.forEach(mathElement => {
+                    this.applyRedHighlightToTerm(mathElement, highlightText);
+                });
+            }
+        }, 300); // Give MathJax time to render
+    }
+
+    /**
+     * Apply red highlighting to specific term within an element
+     */
+    applyRedHighlightToTerm(element, highlightText) {
+        // Try different approaches to find and highlight the text
+        const textContent = element.textContent || element.innerText;
+
+        if (textContent && textContent.includes(highlightText)) {
+            // Method 1: Try to find and wrap the text directly
+            const walker = document.createTreeWalker(
+                element,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+
+            let textNode;
+            while (textNode = walker.nextNode()) {
+                const nodeText = textNode.textContent;
+                if (nodeText.includes(highlightText)) {
+                    const span = document.createElement('span');
+                    span.className = 'formula-term-highlight';
+                    span.style.cssText = 'color: #ef4444 !important; font-weight: bold; background: rgba(239, 68, 68, 0.1); padding: 1px 3px; border-radius: 3px;';
+
+                    const highlightedText = nodeText.replace(
+                        new RegExp(highlightText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
+                        `<mark style="background: rgba(239, 68, 68, 0.2); color: #ef4444; font-weight: bold; padding: 1px 3px; border-radius: 3px;">$&</mark>`
+                    );
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = highlightedText;
+
+                    while (tempDiv.firstChild) {
+                        textNode.parentNode.insertBefore(tempDiv.firstChild, textNode);
+                    }
+                    textNode.remove();
+                    break;
+                }
+            }
+        }
     }
 
     /**
      * Clear all formula highlighting
      */
     clearFormulaHighlighting() {
+        // Remove background highlighting
         const highlightedFormulas = document.querySelectorAll('.formula-highlighted');
         highlightedFormulas.forEach(formula => {
             formula.classList.remove('formula-highlighted');
         });
+
+        // Remove red term highlighting
+        const highlightedTerms = document.querySelectorAll('.formula-term-highlight, mark[style*="color: #ef4444"]');
+        highlightedTerms.forEach(term => {
+            // Replace the highlighted element with its text content
+            const parent = term.parentNode;
+            if (parent) {
+                parent.replaceChild(document.createTextNode(term.textContent), term);
+                parent.normalize(); // Merge adjacent text nodes
+            }
+        });
+
+        // Force MathJax to re-render to clean up any highlighting artifacts
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            const formulaContainers = document.querySelectorAll('.mathematical-formulation');
+            setTimeout(() => {
+                window.MathJax.typesetPromise(formulaContainers).catch((err) =>
+                    console.warn('MathJax re-render error:', err)
+                );
+            }, 100);
+        }
     }
 
     /**
@@ -1255,6 +1538,9 @@ class OptimizationResearchController {
         this.highlightObjectiveScore('ux', uxScore);
         this.highlightObjectiveScore('safety', safetyScore);
         this.highlightObjectiveScore('efficiency', efficiencyScore);
+
+        // Display detailed solution panel
+        this.displaySolutionDetails(solution);
     }
 
     /**
@@ -1321,6 +1607,119 @@ class OptimizationResearchController {
         } catch (error) {
             console.error('Failed to export solution:', error);
         }
+    }
+
+    /**
+     * Display detailed information for selected solution
+     */
+    displaySolutionDetails(solution) {
+        const detailsContainer = document.getElementById('solution-details');
+        if (!detailsContainer) {
+            console.warn('Solution details container not found');
+            return;
+        }
+
+        // Extract solution data with fallbacks
+        const mu = solution.parameters?.mu || solution.mu || 0;
+        const nu = solution.parameters?.nu || solution.nu || 0;
+        const H = solution.parameters?.horizon || solution.H || 0;
+
+        const uxScore = solution.scores?.ux || solution.uxScore || 0;
+        const safetyScore = solution.scores?.safety || solution.safetyScore || 0;
+        const efficiencyScore = solution.scores?.efficiency || solution.efficiencyScore || 0;
+
+        // Calculate overall score (weighted average)
+        const overallScore = (uxScore + safetyScore + efficiencyScore) / 3;
+
+        // Generate solution details HTML
+        const detailsHTML = `
+            <div class="solution-header">
+                <div class="solution-title">
+                    <h4>Selected Solution</h4>
+                    <div class="solution-id">ID: ${solution.id || Math.floor(Date.now() / 1000)}</div>
+                </div>
+                <div class="overall-score">
+                    <div class="score-value">${overallScore.toFixed(3)}</div>
+                    <div class="score-label">Overall Score</div>
+                </div>
+            </div>
+
+            <div class="solution-content">
+                <div class="parameters-section">
+                    <h5>🎛️ Parameters</h5>
+                    <div class="parameter-grid">
+                        <div class="parameter-item">
+                            <span class="param-label">μ (L1 Weight)</span>
+                            <span class="param-value">${mu.toFixed(4)}</span>
+                        </div>
+                        <div class="parameter-item">
+                            <span class="param-label">ν (Deficit Weight)</span>
+                            <span class="param-value">${nu.toFixed(4)}</span>
+                        </div>
+                        <div class="parameter-item">
+                            <span class="param-label">H (Horizon)</span>
+                            <span class="param-value">${H} steps</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="objectives-section">
+                    <h5>🎯 Objective Scores</h5>
+                    <div class="objective-scores">
+                        <div class="objective-item ux">
+                            <div class="objective-header">
+                                <span class="objective-icon">👥</span>
+                                <span class="objective-name">User Experience</span>
+                            </div>
+                            <div class="objective-score">${uxScore.toFixed(3)}</div>
+                            <div class="score-bar">
+                                <div class="score-fill ux-fill" style="width: ${Math.max(5, Math.min(100, (uxScore + 1) * 50))}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="objective-item safety">
+                            <div class="objective-header">
+                                <span class="objective-icon">🛡️</span>
+                                <span class="objective-name">Protocol Safety</span>
+                            </div>
+                            <div class="objective-score">${safetyScore.toFixed(3)}</div>
+                            <div class="score-bar">
+                                <div class="score-fill safety-fill" style="width: ${Math.max(5, Math.min(100, (safetyScore + 1) * 50))}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="objective-item efficiency">
+                            <div class="objective-header">
+                                <span class="objective-icon">💰</span>
+                                <span class="objective-name">Economic Efficiency</span>
+                            </div>
+                            <div class="objective-score">${efficiencyScore.toFixed(3)}</div>
+                            <div class="score-bar">
+                                <div class="score-fill efficiency-fill" style="width: ${Math.max(5, Math.min(100, (efficiencyScore + 1) * 50))}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-section">
+                    <button class="btn btn-primary" onclick="alert('Apply parameters: μ=${mu.toFixed(3)}, ν=${nu.toFixed(3)}, H=${H}')">
+                        📋 Apply Parameters
+                    </button>
+                    <button class="btn btn-secondary" onclick="alert('Export feature coming soon!')">
+                        💾 Export Solution
+                    </button>
+                </div>
+            </div>
+        `;
+
+        detailsContainer.innerHTML = detailsHTML;
+
+        console.log('📋 Displayed solution details for:', {
+            mu: mu.toFixed(3),
+            nu: nu.toFixed(3),
+            H,
+            scores: { ux: uxScore.toFixed(3), safety: safetyScore.toFixed(3), efficiency: efficiencyScore.toFixed(3) }
+        });
     }
 
     /**
@@ -1575,8 +1974,8 @@ class OptimizationResearchController {
             return;
         }
 
-        const solutionsHTML = solutions.map(solution => `
-            <div class="solution-item ${solution.isParetoOptimal ? 'pareto-optimal' : ''}">
+        const solutionsHTML = solutions.map((solution, index) => `
+            <div class="solution-item ${solution.isParetoOptimal ? 'pareto-optimal' : ''}" data-solution-index="${index}">
                 <div class="solution-params">
                     <strong>μ=${solution.mu.toFixed(3)}, ν=${solution.nu.toFixed(3)}, H=${solution.H}</strong>
                 </div>
@@ -1590,6 +1989,28 @@ class OptimizationResearchController {
         `).join('');
 
         container.innerHTML = solutionsHTML;
+
+        // Add click handlers to solution items for selection
+        container.querySelectorAll('.solution-item').forEach((item, index) => {
+            item.addEventListener('click', () => {
+                const solution = solutions[index];
+                if (solution) {
+                    // Remove previous selections
+                    container.querySelectorAll('.solution-item').forEach(el => el.classList.remove('selected'));
+                    // Mark this item as selected
+                    item.classList.add('selected');
+                    // Handle selection
+                    this.handlePointSelection(solution);
+                    console.log('📊 Solution selected from list:', solution);
+                }
+            });
+
+            // Add visual feedback for clickability
+            item.style.cursor = 'pointer';
+            item.title = 'Click to view solution details';
+        });
+
+        console.log('📊 Updated solutions list with', solutions.length, 'solutions and click handlers');
     }
 
     /**
