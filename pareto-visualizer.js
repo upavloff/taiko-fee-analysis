@@ -402,12 +402,18 @@ class ParetoVisualizer {
      * Handle mouse clicks for selection
      */
     onMouseClick(event) {
+        console.log('🖱️ Mouse clicked on 3D visualization');
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
+        console.log('📍 Mouse coords:', this.mouse.x, this.mouse.y);
+        console.log('🎯 Intersection objects available:', this.intersectionObjects.length);
+
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObjects(this.intersectionObjects);
+
+        console.log('✨ Intersections found:', intersects.length);
 
         if (intersects.length > 0) {
             const clickedObject = intersects[0].object;
@@ -424,11 +430,16 @@ class ParetoVisualizer {
 
             // Callback
             if (this.onPointSelected) {
+                console.log('📞 Calling onPointSelected callback with:', this.selectedPoint.userData);
                 this.onPointSelected(this.selectedPoint.userData);
+            } else {
+                console.warn('❌ No onPointSelected callback set!');
             }
         } else {
             // Click on empty space - deselect
+            console.log('💫 Clicked on empty space (no intersections)');
             if (this.selectedPoint) {
+                console.log('🔄 Deselecting current point');
                 this.resetPointAppearance(this.selectedPoint);
                 this.selectedPoint = null;
                 this.hideDetailPanel();
@@ -672,6 +683,7 @@ class ParetoVisualizer {
 
         // Register for interaction
         this.intersectionObjects.push(sphere);
+        console.log('✨ Added solution point to 3D visualization. Total intersection objects:', this.intersectionObjects.length);
 
         if (isParetoOptimal) {
             this.paretoPoints.push(sphere);
@@ -1165,6 +1177,7 @@ class ParetoVisualizer {
      * Set callback functions for interaction events
      */
     setCallbacks({ onPointSelected, onPointHovered }) {
+        console.log('📞 Setting callbacks - onPointSelected:', !!onPointSelected, 'onPointHovered:', !!onPointHovered);
         this.onPointSelected = onPointSelected;
         this.onPointHovered = onPointHovered;
     }
