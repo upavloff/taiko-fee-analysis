@@ -162,6 +162,255 @@ body {
     color: #2d3748;
 }
 
+/* Quick preset buttons styling */
+.quick-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.quick-presets .preset-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    min-width: 120px;
+    text-align: center;
+}
+
+.quick-presets .preset-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.quick-presets .preset-btn.active {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border-color: #059669;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Solution Details Panel Styling */
+.solution-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.solution-title h4 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.solution-id {
+    color: #64748b;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.overall-score {
+    text-align: center;
+}
+
+.score-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #3b82f6;
+}
+
+.score-label {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.solution-content h5 {
+    color: #374151;
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.parameter-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.parameter-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+.param-label {
+    color: #4b5563;
+    font-size: 13px;
+}
+
+.param-value {
+    color: #1e293b;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.objective-scores {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.objective-item {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.objective-item.ux {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-color: #f59e0b;
+}
+
+.objective-item.safety {
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    border-color: #10b981;
+}
+
+.objective-item.efficiency {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    border-color: #3b82f6;
+}
+
+.objective-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.objective-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.objective-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.objective-score {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.score-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.score-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.ux-fill {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.safety-fill {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.efficiency-fill {
+    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+}
+
+.actions-section {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.actions-section .btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.actions-section .btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+}
+
+.actions-section .btn-primary:hover {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    transform: translateY(-1px);
+}
+
+.actions-section .btn-secondary {
+    background: #f8fafc;
+    color: #374151;
+    border: 1px solid #e2e8f0;
+}
+
+.actions-section .btn-secondary:hover {
+    background: #f1f5f9;
+    transform: translateY(-1px);
+}
+
+/* Solution List Item Selection Styling */
+.solution-item {
+    transition: all 0.2s ease;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    padding: 12px;
+    border: 1px solid transparent;
+}
+
+.solution-item:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.solution-item.selected {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    transform: translateY(-1px);
+}
+
+.solution-item.pareto-optimal.selected {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border-color: #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
 .preset-btn.featured {
     background: linear-gradient(145deg, #ff6b6b 0%, #ee5a24 100%);
     border: 1px solid #ff6b6b;
@@ -844,8 +1093,12 @@ body {
     justify-content: center;
     align-items: center;
     color: #4a5568;
-    z-index: 1000;
+    z-index: 100; /* Reduced from 1000 to avoid blocking high-priority UI elements */
     border-radius: 8px;
+    /* Ensure overlay is contained within parent */
+    contain: layout style paint;
+    /* Allow clicking through the overlay background to parent elements if needed */
+    pointer-events: auto;
 }
 
 .spinner {
@@ -1157,6 +1410,31 @@ html {
     animation: formulaGlow 0.5s ease-out;
 }
 
+/* Red Term Highlighting */
+.formula-term-highlight {
+    color: #ef4444 !important;
+    font-weight: bold !important;
+    background: rgba(239, 68, 68, 0.15) !important;
+    padding: 2px 4px !important;
+    border-radius: 4px !important;
+    animation: termHighlight 0.4s ease-out;
+}
+
+mark[style*="color: #ef4444"] {
+    animation: termHighlight 0.4s ease-out;
+}
+
+@keyframes termHighlight {
+    0% {
+        background: rgba(239, 68, 68, 0.4);
+        transform: scale(1.1);
+    }
+    100% {
+        background: rgba(239, 68, 68, 0.15);
+        transform: scale(1);
+    }
+}
+
 @keyframes formulaGlow {
     0% {
         box-shadow: 0 0 0 0px rgba(245, 158, 11, 0.4);
@@ -1202,7 +1480,7 @@ html {
     padding: 0 20px;
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 200; /* Higher than loading overlay to ensure clickability */
 }
 
 .research-tab-button {
@@ -1242,10 +1520,20 @@ html {
     display: none;
     flex: 1;
     flex-direction: column;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
 
 .research-tab-content.active {
-    display: flex;
+    display: flex !important;
+    opacity: 1 !important;
+}
+
+/* Ensure tab buttons are always clickable during loading */
+.research-tab-button {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 250; /* Highest priority to ensure always clickable */
 }
 
 /* Optimization Interface Styles */
