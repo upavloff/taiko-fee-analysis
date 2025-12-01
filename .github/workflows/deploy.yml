@@ -25,6 +25,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: web_src/package-lock.json
+
+      - name: Install dependencies and build
+        run: |
+          cd web_src
+          npm ci
+          npm run build
+          echo "✅ Built web application from modular source"
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
@@ -40,9 +54,9 @@ jobs:
 
           # Copy required data files
           mkdir -p web_deploy/data_cache
-          if [ -d "data/data_cache" ] && [ -n "$(ls data/data_cache/*.csv 2>/dev/null)" ]; then
-            cp data/data_cache/*.csv web_deploy/data_cache/
-            echo "✅ Copied $(ls data/data_cache/*.csv | wc -l) CSV files"
+          if [ -d "data/cache" ] && [ -n "$(ls data/cache/*.csv 2>/dev/null)" ]; then
+            cp data/cache/*.csv web_deploy/data_cache/
+            echo "✅ Copied $(ls data/cache/*.csv | wc -l) CSV files"
           else
             echo "❌ No CSV files found, creating empty data_cache"
           fi

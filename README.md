@@ -11,6 +11,18 @@ This repository contains a complete analysis of Taiko's fee mechanism, including
 - **Interactive web interface** for parameter exploration
 - **Comprehensive metrics** for mechanism evaluation
 
+## 🚀 Quick Start
+
+### Local Development
+```bash
+# Serve from repo root (REQUIRED for data access)
+python3 -m http.server 8000
+# OR from web_src/ for development builds
+cd web_src && npm run dev
+```
+
+**⚠️ Important**: Must serve over HTTP, not file:// protocol. The application fetches CSV data via `data_cache/*.csv` symlinks.
+
 ## 📊 Fee Mechanism Formula
 
 The Taiko fee mechanism implements a dual-component pricing model:
@@ -39,7 +51,7 @@ This implements economies of scale: higher transaction volume reduces per-transa
 
 ### Web Interface (Recommended)
 ```bash
-open index.html  # Open in browser - fully static!
+open index.html  # Open in browser from repo root - fully static!
 ```
 
 ### Python Analysis
@@ -68,23 +80,22 @@ taiko-fee-analysis/
 │   │   └── mechanism_metrics.py
 │   └── utils/                    # Utility functions
 │       └── vault_initialization_demo.py
-├── web/                          # Interactive web interface (static)
-│   ├── index.html               # Main application
-│   ├── simulator.js             # JavaScript simulator
-│   ├── charts.js               # Visualization engine
-│   ├── styles.css              # UI styling
-│   └── data_cache/             # → ../data/data_cache (symlink)
+├── index.html                   # Main web application (repo root)
+├── simulator.js                 # JavaScript simulator
+├── charts.js                   # Visualization engine
+├── styles.css                  # UI styling
+├── optimization-research.js     # Optimization framework
+├── nsga-ii-web.js              # Multi-objective optimization
 ├── analysis/                     # Scientific analysis
 │   └── notebooks/               # Jupyter notebooks
 │       ├── taiko_fee_analysis.ipynb
 │       └── updated_taiko_analysis.ipynb
-├── data/                        # Historical L1 data
-│   └── data_cache/             # Cached basefee datasets
-│       ├── recent_low_fees_3hours.csv       # Nov 2025 low fee period (0.055-0.092 gwei)
-│       ├── may_crash_basefee_data.csv       # May 2022 UST/Luna crash (53-533 gwei)
-│       └── real_july_2022_spike_data.csv    # July 2022 market volatility (7-88 gwei)
+├── data_cache/                  # Cached basefee datasets (repo root)
+│   ├── recent_low_fees_3hours.csv       # Nov 2025 low fee period (0.055-0.092 gwei)
+│   ├── luna_crash_true_peak_contiguous.csv  # May 2022 UST/Luna crash (53-533 gwei)
+│   └── real_july_2022_spike_data.csv    # July 2022 market volatility (7-88 gwei)
 ├── docs/                        # Documentation
-│   └── README.md               # Research findings & methodology
+│   └── research/                # Research findings & methodology
 ├── tests/                       # Test suite (future)
 ├── requirements.txt             # Python dependencies
 └── README.md                   # This file
@@ -140,7 +151,7 @@ All analysis uses **post-EIP-1559 data only** (August 5, 2021+) to ensure compat
 The web interface is fully static and can be deployed to any hosting platform:
 - **GitHub Pages** (for public repos)
 - **Netlify/Vercel** (supports private repos)
-- **Local hosting** (open `web/index.html`)
+- **Local hosting** (open `index.html` from repo root)
 
 ## 💻 Usage Examples
 
@@ -148,9 +159,9 @@ The web interface is fully static and can be deployed to any hosting platform:
 ```python
 from src.core import ImprovedTaikoFeeSimulator, ImprovedSimulationParams, GeometricBrownianMotion
 
-# Create parameters with proper vault initialization
+# Create parameters using current optimal configuration from CLAUDE.md
 params = ImprovedSimulationParams(
-    mu=0.5, nu=0.3, H=144,
+    mu=0.0, nu=0.1, H=36,  # Post-timing-fix optimal parameters
     target_balance=100,
     vault_initialization_mode="target",
     total_steps=500
