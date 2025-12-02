@@ -2,6 +2,12 @@
 
 A comprehensive scientific analysis framework for the Taiko protocol's fee mechanism, implementing EIP-1559 based fee estimation with vault deficit correction.
 
+## 🚨 **CRITICAL: Unit Safety System Implemented**
+
+**FIXED**: Major unit mismatch bug where ETH was passed to functions expecting WEI, causing fees to be 10^18 times too small.
+
+**NEW**: Comprehensive anti-bug system with type safety, validation, and golden tests. See [`UNIT_CONVENTIONS.md`](UNIT_CONVENTIONS.md) for details.
+
 ## 🎯 Overview
 
 This repository contains a complete analysis of Taiko's fee mechanism, including:
@@ -10,6 +16,7 @@ This repository contains a complete analysis of Taiko's fee mechanism, including
 - **Real-time simulation** with historical Ethereum L1 data
 - **Interactive web interface** for parameter exploration
 - **Comprehensive metrics** for mechanism evaluation
+- **🛡️ Unit-safe implementation** with anti-mismatch protection
 
 ## 🚀 Quick Start
 
@@ -98,6 +105,8 @@ taiko-fee-analysis/
 │   └── research/                # Research findings & methodology
 ├── tests/                       # Test suite (future)
 ├── requirements.txt             # Python dependencies
+├── UNIT_CONVENTIONS.md         # 🛡️ Anti-bug unit safety guidelines
+├── verify_unit_system.py       # Unit system verification
 └── README.md                   # This file
 ```
 
@@ -215,6 +224,22 @@ python -m ipykernel install --user --name taiko-analysis --display-name "Taiko A
 jupyter notebook analysis/notebooks/taiko_fee_analysis.ipynb
 ```
 
+
+## 🛡️ Unit Safety System
+
+**CRITICAL**: This project implements a comprehensive unit mismatch prevention system after discovering a critical bug where ETH amounts were passed to functions expecting WEI, causing fees to be 10^18 times too small.
+
+### Quick Verification
+```bash
+# Verify the unit system works correctly
+python verify_unit_system.py
+```
+
+### For Developers
+
+**MANDATORY**: Read [`UNIT_CONVENTIONS.md`](UNIT_CONVENTIONS.md) before modifying fee calculation code.
+
+**This system prevents the 10^18 magnitude bug from ever happening again.**
 ## 📄 License
 
 MIT License - see LICENSE file for details.

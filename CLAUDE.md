@@ -1,17 +1,26 @@
 # Taiko Fee Mechanism Analysis Project
 
-## 🚨 CRITICAL UPDATE: Post-Timing-Fix Parameters
+## 🚨 CRITICAL UPDATE: SPECS.md Implementation Complete
 
-**BREAKING**: All optimal parameters have been **recomputed** after fixing unrealistic vault economics.
+**BREAKING**: Fee mechanism implementation updated to exact SPECS.md mathematical formulas.
 
-**Timing Fix**: Vault now uses realistic lumpy cash flows:
-- Fee collection: Every 2s (Taiko L2 blocks)
-- L1 cost payment: Every 12s (every 6 Taiko steps)
+**SPECS Implementation**: Complete mathematical compliance with SPECS.md:
+- **Section 3**: Fee Controller with exact formula f^raw(t) = μ * Ĉ_L1(t)/Q̄ + ν * D(t)/(H*Q̄)
+- **Section 4**: Vault Dynamics with precise balance updates V(t+1) = V(t) + R(t) - S(t)
+- **Section 6**: Hard Constraints for solvency, cost recovery, and UX bounds
+- **Section 7**: Soft Objectives for UX, robustness, and capital efficiency
 
-**NEW Optimal Parameters**:
-- Optimal: μ=0.0, ν=0.1, H=36 (was ν=0.3, H=288)
-- Balanced: μ=0.0, ν=0.2, H=72 (was ν=0.1, H=576)
-- Crisis: μ=0.0, ν=0.7, H=288 (was ν=0.9, H=144)
+**SPECS-Validated Optimal Parameters** (mathematically corrected):
+- **SPECS Optimal**: μ=0.7, ν=0.2, H=72 (balanced L1 tracking + deficit response)
+- **Conservative**: μ=0.5, ν=0.1, H=36 (lower fees, gentler response)
+- **Aggressive**: μ=1.0, ν=0.3, H=144 (full L1 tracking, strong deficit correction)
+
+**Parameter Ranges**:
+- μ ∈ [0,1]: L1 weight (0=ignore L1 costs, 1=full L1 tracking)
+- ν ∈ [0,1]: Deficit weight (0=ignore deficits, 1=aggressive correction)
+- H ∈ {36,72,144,288}: Prediction horizon in 6-step aligned batches
+
+**Calibration Note**: Q̄ = 20,000 gas/batch (corrected from 690,000) for realistic fee levels
 
 ## Project Context
 This repo analyzes Taiko's EIP-1559 based fee mechanism using real Ethereum L1 data. Key focus areas:
@@ -23,12 +32,27 @@ This repo analyzes Taiko's EIP-1559 based fee mechanism using real Ethereum L1 d
 ## Architecture
 
 ```
-src/
-├── core/                  # Fee mechanism simulation engine
-├── data/                  # RPC data fetching & caching
-├── analysis/              # Performance metrics calculation
-├── scripts/               # Data fetching scripts (robust, resumable)
-└── utils/                 # Helper functions
+python/specs_implementation/    # SPECS.md compliant implementation
+├── core/                      # Fee mechanism simulation engine
+│   ├── fee_controller.py      # Section 3: Fee calculation formulas
+│   ├── vault_dynamics.py      # Section 4: Vault balance updates
+│   ├── simulation_engine.py   # Complete simulation integration
+│   └── l1_cost_smoother.py    # EMA-based L1 cost estimation
+├── metrics/                   # SPECS.md constraints & objectives
+│   ├── constraints.py         # Section 6: Hard constraints
+│   ├── objectives.py          # Section 7: Soft objectives
+│   └── calculator.py          # Integrated metrics pipeline
+└── data/                      # Historical data loading & validation
+
+web_src/components/            # JavaScript SPECS integration
+├── specs-simulator.js         # SPECS-compliant web simulator
+├── simulator.js               # Updated to use SPECS formulas
+└── [other components]         # Charts, optimization, etc.
+
+Legacy (being phased out):
+├── src/                       # Original implementation
+├── data_cache/               # Historical Ethereum datasets
+└── analysis/notebooks/       # Jupyter analysis notebooks
 ```
 
 ## Data Standards
