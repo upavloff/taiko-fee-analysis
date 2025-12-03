@@ -1,23 +1,26 @@
 # Taiko Fee Mechanism Analysis Project
 
-## 🏗️ CANONICAL MODULE ARCHITECTURE
+## 🏗️ AUTHORITATIVE SPECIFICATION
 
-**SINGLE SOURCE OF TRUTH**: All fee mechanism logic is now centralized in canonical modules.
+**SINGLE SOURCE OF TRUTH**: `AUTHORITATIVE_SPECIFICATION.md` - All implementations must follow this specification.
 
-**🔧 CRITICAL BUG FIXES APPLIED** (Dec 2024):
-- **Gas Calculation**: Fixed 30x JavaScript overestimate and 10x Python underestimate → Now uses correct 20,000 gas/tx
-- **Basefee Floor**: Removed artificial 1 gwei minimum → Uses realistic 0.001 gwei floor
-- **Time Units**: Corrected documentation H=144 ≈ 4.8 minutes (was incorrectly stated as 1 day)
-- **Consistency**: All implementations now use identical, scientifically accurate formulas
+**🚨 SPECIFICATION CONSOLIDATION COMPLETE** (Dec 2024):
+- **Unified Formula**: L2 Sustainability Basefee from SUMMARY.md is now the sole specification
+- **Deprecated Specs**: All competing specifications retired (CANONICAL_FEE_MECHANISM_SPEC.md.DEPRECATED)
+- **Parameter Status**: Core mechanism parameters require real Taiko data calibration (**α_data**, **Q̄**)
+- **Implementation Requirement**: All Python/JavaScript code must implement identical formulas with UX wrapper
 
-**Canonical Modules**:
-- **Python**: `src/core/canonical_*.py` - Authoritative implementations for research
-- **JavaScript**: `canonical-*.js` - Mirror implementations for GitHub Pages web interface
+**Formula Reference**:
+```
+F_L2_raw(t) = μ × C_DA(t) + ν × C_vault(t)
+C_DA(t) = α_data × B̂_L1(t)
+C_vault(t) = D(t)/(H × Q̄)
+```
 
-**Research-Validated Optimal Parameters**:
-- Optimal: μ=0.0, ν=0.27, H=492 (NSGA-II multi-objective optimization result)
-- Balanced: μ=0.0, ν=0.48, H=492 (Conservative approach)
-- Crisis: μ=0.0, ν=0.88, H=120 (Aggressive deficit recovery)
+**Parameter Status** (Post-Consolidation):
+- **UNCALIBRATED**: α_data, Q̄ (require real Taiko proposeBlock data)
+- **Mechanism**: μ, ν, H (require re-optimization with calibrated constants)
+- **UX**: F_min, F_max, κ_↑, κ_↓ (require implementation)
 
 ## Project Context
 This repo analyzes Taiko's EIP-1559 based fee mechanism using real Ethereum L1 data. Key focus areas:
@@ -234,8 +237,57 @@ python3 src/scripts/monitor_fetch_progress.py
 - **Contiguous block ranges** required for accurate analysis
 - **Multiple RPC endpoints** essential for reliability
 
+### Web Interface Development Architecture
+
+**CRITICAL**: The repository has a dual-file structure that requires careful attention:
+
+#### File Structure:
+- **`/web_src/`**: Development source files (modular ES6 architecture)
+- **Root files**: Production files used by GitHub Pages deployment
+- **GitHub Actions**: Builds from `web_src/` but deploys root files
+
+#### Development Workflow:
+1. **Primary Development**: Work in `/web_src/` for new features
+2. **Production Updates**: Critical fixes can be made directly to root files
+3. **Sync Requirement**: Changes must be manually synced between both versions
+4. **Deployment Target**: GitHub Pages uses **ROOT FILES ONLY**
+
+#### Which Files to Edit:
+- **For new features**: Edit `/web_src/index.html`, `/web_src/components/*.js`
+- **For quick fixes**: Edit root `/index.html`, `/app.js` (what users see immediately)
+- **Always sync**: Ensure both versions remain consistent
+
+#### File Path Differences:
+```html
+<!-- ROOT /index.html -->
+<link rel="stylesheet" href="styles.css">
+<script src="app.js"></script>
+
+<!-- WEB_SRC /web_src/index.html -->
+<link rel="stylesheet" href="styles/styles.css">
+<script type="module" src="main.js"></script>
+```
+
+#### Critical Sync Points:
+- Fee mechanism descriptions in formula info boxes
+- Parameter updates and optimization results
+- JavaScript error fixes and functionality changes
+
+#### Sync Automation:
+```bash
+# Sync web_src development files to root production (recommended workflow)
+./sync-web-versions.sh src-to-root
+
+# Sync root files back to web_src (if you made production fixes)
+./sync-web-versions.sh root-to-src
+
+# Make script executable first time
+chmod +x sync-web-versions.sh
+```
+
 ### Deployment
 - **GitHub Pages compatible** - no server required
 - **Static web deployment** using `python3 -m http.server`
 - All canonical modules work in browser without build step
 - Use python3 and pip3
+- **Production uses ROOT files** - `/index.html`, `/app.js`, `/styles.css`

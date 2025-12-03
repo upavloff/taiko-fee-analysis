@@ -20,6 +20,10 @@ import './components/pareto-visualizer.js';
 import './components/nsga-ii-web.js';
 import './components/optimization-research.js';
 
+// Production optimization system integration
+import '../stakeholder-profiles.js';
+import '../production-optimization-web.js';
+
 // Main application controller (must be last)
 import './components/app.js';
 

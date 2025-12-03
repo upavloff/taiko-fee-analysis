@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug New Specification</title>
+</head>
+<body>
+    <h1>Debug Test for New Fee Mechanism</h1>
+    <div id="output"></div>
+    <div id="errors" style="color: red;"></div>
+
+    <script type="module">
+        let output = document.getElementById('output');
+        let errors = document.getElementById('errors');
+
+        function log(msg) {
+            output.innerHTML += '<p>' + msg + '</p>';
+        }
+
+        function logError(msg) {
+            errors.innerHTML += '<p>ERROR: ' + msg + '</p>';
+            console.error(msg);
+        }
+
+        try {
+            log('Starting debug test...');
+
+            // Test 1: Try to import the module
+            const module = await import('./canonical-fee-mechanism.js');
+            log('✅ Module imported successfully');
+
+            // Test 2: Check what's available
+            log('Available exports: ' + Object.keys(module).join(', '));
+
+            // Test 3: Try to create calculator
+            const calc = module.createDefaultCalculator();
+            log('✅ Calculator created');
+
+            // Test 4: Check calculator methods
+            const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(calc));
+            log('Calculator methods: ' + methods.join(', '));
+
+            // Test 5: Try new methods
+            if (typeof calc.calculateEstimatedFeeRaw === 'function') {
+                log('✅ calculateEstimatedFeeRaw method exists');
+                const fee = calc.calculateEstimatedFeeRaw(20e9, 50.0);
+                log('✅ New method works: ' + fee);
+            } else {
+                logError('❌ calculateEstimatedFeeRaw method missing');
+            }
+
+            if (typeof calc.calculateSmoothedL1Basefee === 'function') {
+                log('✅ calculateSmoothedL1Basefee method exists');
+                const basefee = calc.calculateSmoothedL1Basefee(20e9);
+                log('✅ Smoothed basefee: ' + basefee);
+            } else {
+                logError('❌ calculateSmoothedL1Basefee method missing');
+            }
+
+            // Test 6: Check parameters
+            log('Calculator params: ' + JSON.stringify({
+                mu: calc.params.mu,
+                nu: calc.params.nu,
+                H: calc.params.H,
+                alpha_data: calc.params.alpha_data,
+                lambda_B: calc.params.lambda_B,
+                Q_bar: calc.params.Q_bar,
+                T: calc.params.T
+            }, null, 2));
+
+        } catch (error) {
+            logError('Failed: ' + error.message);
+            console.error(error);
+        }
+    </script>
+</body>
+</html>

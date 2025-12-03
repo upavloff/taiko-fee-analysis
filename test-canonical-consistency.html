@@ -232,62 +232,101 @@
 
         function testFeeCalculations() {
             const container = document.getElementById('fee-mechanism-tests');
-            let html = '<h3>Testing Fee Calculation Consistency</h3>';
+            let html = '<h3>Testing Fee Calculation Consistency (NEW SPECIFICATION)</h3>';
 
             try {
-                // Test 1: Basic fee calculation
+                // Test 1: New specification components
                 const calculator = createDefaultCalculator();
                 const l1BasefeeWei = 20e9; // 20 gwei
                 const vaultDeficit = 50.0;
 
+                // Test individual components of new formula
+                const smoothedBasefee = calculator.calculateSmoothedL1Basefee(l1BasefeeWei);
+                const CDA = calculator.calculateCDA(l1BasefeeWei);
+                const CVault = calculator.calculateCVault(vaultDeficit);
+                const feeRaw = calculator.calculateEstimatedFeeRaw(l1BasefeeWei, vaultDeficit);
+
+                // Expected values for new specification
+                // B̂_L1(t) = 20e9 / 1e18 = 2e-8 ETH per L1 gas (first call, no smoothing)
+                const expectedSmoothedBasefee = 2e-8;
+                // C_DA(t) = alpha_data × B̂_L1(t) = 20000 × 2e-8 = 4e-4 ETH per L2 gas
+                const expectedCDA = 4e-4;
+                // C_vault(t) = D(t)/(H × Q̄) = 50/(492 × 690000) ≈ 1.47e-7 ETH per L2 gas
+                const expectedCVault = 50 / (492 * 690000);
+                // F_L2_raw(t) = μ × C_DA(t) + ν × C_vault(t) = 0.0 × 4e-4 + 0.27 × 1.47e-7 ≈ 3.97e-8
+                const expectedFeeRaw = 0.0 * expectedCDA + 0.27 * expectedCVault;
+
+                const basefeePass = Math.abs(smoothedBasefee - expectedSmoothedBasefee) < 1e-9;
+                const cdaPass = Math.abs(CDA - expectedCDA) < 1e-5;
+                const cvaultPass = Math.abs(CVault - expectedCVault) < 1e-8;
+                const feeRawPass = Math.abs(feeRaw - expectedFeeRaw) < 1e-9;
+
+                addTestResult('New Specification', 'Smoothed L1 Basefee', basefeePass, expectedSmoothedBasefee, smoothedBasefee);
+                addTestResult('New Specification', 'C_DA Calculation', cdaPass, expectedCDA, CDA);
+                addTestResult('New Specification', 'C_vault Calculation', cvaultPass, expectedCVault, CVault);
+                addTestResult('New Specification', 'Raw Fee Calculation', feeRawPass, expectedFeeRaw, feeRaw);
+
+                html += `
+                    <div class="test-result ${basefeePass ? 'test-pass' : 'test-fail'}">
+                        Smoothed L1 Basefee: Expected ${expectedSmoothedBasefee.toExponential(3)} ETH/gas, Got ${smoothedBasefee.toExponential(3)} ETH/gas
+                        <span class="status-indicator ${basefeePass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                    <div class="test-result ${cdaPass ? 'test-pass' : 'test-fail'}">
+                        C_DA: Expected ${expectedCDA.toExponential(3)} ETH/L2gas, Got ${CDA.toExponential(3)} ETH/L2gas
+                        <span class="status-indicator ${cdaPass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                    <div class="test-result ${cvaultPass ? 'test-pass' : 'test-fail'}">
+                        C_vault: Expected ${expectedCVault.toExponential(3)} ETH/L2gas, Got ${CVault.toExponential(3)} ETH/L2gas
+                        <span class="status-indicator ${cvaultPass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                    <div class="test-result ${feeRawPass ? 'test-pass' : 'test-fail'}">
+                        F_L2_raw: Expected ${expectedFeeRaw.toExponential(3)} ETH/L2gas, Got ${feeRaw.toExponential(3)} ETH/L2gas
+                        <span class="status-indicator ${feeRawPass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                `;
+
+                // Test 2: Legacy compatibility
                 const l1Cost = calculator.calculateL1CostPerTx(l1BasefeeWei);
-                const estimatedFee = calculator.calculateEstimatedFee(l1Cost, vaultDeficit);
-
-                // Expected values with corrected 20k gas calculation
-                const expectedL1Cost = 0.0004; // 20 gwei * 20k gas / 1e18 = 0.0004 ETH
-                const expectedFee = 0.00002756; // Corrected fee calculation with proper gas
-
-                const l1CostPass = Math.abs(l1Cost - expectedL1Cost) < 0.0001;
-                const feePass = Math.abs(estimatedFee - expectedFee) < 0.00001;
-
-                addTestResult('Fee Mechanism', 'L1 Cost Calculation', l1CostPass, expectedL1Cost, l1Cost);
-                addTestResult('Fee Mechanism', 'Fee Calculation', feePass, expectedFee, estimatedFee);
+                const estimatedFeeLegacy = calculator.calculateEstimatedFee(l1Cost, vaultDeficit);
 
                 html += `
-                    <div class="test-result ${l1CostPass ? 'test-pass' : 'test-fail'}">
-                        L1 Cost: Expected ${expectedL1Cost.toFixed(6)} ETH, Got ${l1Cost.toFixed(6)} ETH
-                        <span class="status-indicator ${l1CostPass ? 'status-pass' : 'status-fail'}"></span>
-                    </div>
-                    <div class="test-result ${feePass ? 'test-pass' : 'test-fail'}">
-                        Estimated Fee: Expected ${expectedFee.toFixed(6)} ETH, Got ${estimatedFee.toFixed(6)} ETH
-                        <span class="status-indicator ${feePass ? 'status-pass' : 'status-fail'}"></span>
+                    <div class="test-result test-info">
+                        Legacy Compatibility: L1 Cost = ${l1Cost.toExponential(3)} ETH, Legacy Fee = ${estimatedFeeLegacy.toExponential(3)} ETH
+                        <span class="status-indicator status-warn"></span>
                     </div>
                 `;
 
-                // Test 2: Transaction volume calculation
-                const txVolume = calculator.calculateTransactionVolume(estimatedFee);
-                const expectedVolume = 150.0; // Much higher volume due to corrected lower fees
-                const volumePass = Math.abs(txVolume - expectedVolume) < 10.0;
+                // Test 3: Parameter validation
+                const params = calculator.params;
+                const paramValidationPass = (
+                    params.alpha_data === 20000.0 &&
+                    params.lambda_B === 0.365 &&
+                    params.Q_bar === 690000.0 &&
+                    params.T === 1000.0 &&
+                    params.mu === 0.0 &&
+                    params.nu === 0.27 &&
+                    params.H === 492
+                );
 
-                addTestResult('Fee Mechanism', 'Volume Calculation', volumePass, expectedVolume, txVolume);
+                addTestResult('New Specification', 'Parameter Validation', paramValidationPass, 'All correct', 'Parameters match');
 
                 html += `
-                    <div class="test-result ${volumePass ? 'test-pass' : 'test-fail'}">
-                        Transaction Volume: Expected ~${expectedVolume} TPS, Got ${txVolume.toFixed(1)} TPS
-                        <span class="status-indicator ${volumePass ? 'status-pass' : 'status-fail'}"></span>
+                    <div class="test-result ${paramValidationPass ? 'test-pass' : 'test-fail'}">
+                        Parameter Validation: α_data=${params.alpha_data}, λ_B=${params.lambda_B}, Q̄=${params.Q_bar}, T=${params.T}
+                        <span class="status-indicator ${paramValidationPass ? 'status-pass' : 'status-fail'}"></span>
                     </div>
                 `;
 
-                // Test 3: Vault operations
+                // Test 4: Vault operations with new T parameter
                 const vault = calculator.createVault(VaultInitMode.DEFICIT, { deficit_ratio: 0.1 });
-                const expectedDeficit = 100.0; // 10% of 1000 ETH target
+                const expectedDeficit = 100.0; // 10% of T=1000 ETH
                 const deficitPass = Math.abs(vault.deficit - expectedDeficit) < 1.0;
 
-                addTestResult('Fee Mechanism', 'Vault Deficit', deficitPass, expectedDeficit, vault.deficit);
+                addTestResult('New Specification', 'Vault Deficit with T', deficitPass, expectedDeficit, vault.deficit);
 
                 html += `
                     <div class="test-result ${deficitPass ? 'test-pass' : 'test-fail'}">
-                        Vault Deficit: Expected ${expectedDeficit} ETH, Got ${vault.deficit.toFixed(1)} ETH
+                        Vault Deficit (T=${params.T}): Expected ${expectedDeficit} ETH, Got ${vault.deficit.toFixed(1)} ETH
                         <span class="status-indicator ${deficitPass ? 'status-pass' : 'status-fail'}"></span>
                     </div>
                 `;

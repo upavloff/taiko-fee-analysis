@@ -12,7 +12,7 @@ class ChartManager {
         };
     }
 
-    createFeeChart(canvasId, data, gasPerTx) {
+    createFeeChart(canvasId, data, Q_bar) {
         const ctx = document.getElementById(canvasId).getContext('2d');
 
         if (this.charts[canvasId]) {
@@ -31,17 +31,18 @@ class ChartManager {
                 return `${(seconds / 3600).toFixed(2)}h`;
             }
         });
-        // Convert from per-transaction ETH to per-gas gwei: (ETH * 1e9) / gasPerTx
-        if (!gasPerTx || gasPerTx <= 0) {
-            console.error(`🚨 CRITICAL: gasPerTx parameter is ${gasPerTx} for main FeeChart`);
-            console.error(`Expected: ~20,000 gas per transaction from simulator`);
+        // CANONICAL: estimatedFee is already ETH per L2-gas, convert to gwei
+        if (!Q_bar || Q_bar <= 0) {
+            console.error(`🚨 CRITICAL: Q̄ parameter is ${Q_bar} for main FeeChart`);
+            console.error(`Expected: ~690,000 L2 gas per batch from canonical calculator`);
         }
         const feeData = data.map((d, i) => {
-            if (!gasPerTx || gasPerTx <= 0) {
-                console.error(`❌ Data quality issue at index ${i}: gasPerTx is ${gasPerTx}`);
+            if (typeof d.estimatedFee !== 'number' || isNaN(d.estimatedFee)) {
+                console.error(`❌ Data quality issue at index ${i}: estimatedFee is ${d.estimatedFee}`);
                 return 0; // Make error visible
             }
-            return (d.estimatedFee * 1e9) / gasPerTx;
+            // Convert from ETH per L2-gas to gwei per L2-gas
+            return d.estimatedFee * 1e9;
         });
 
         this.charts[canvasId] = new Chart(ctx, {
@@ -385,7 +386,7 @@ class ChartManager {
         });
     }
 
-    createCorrelationChart(canvasId, data, gasPerTx) {
+    createCorrelationChart(canvasId, data, Q_bar) {
         const ctx = document.getElementById(canvasId).getContext('2d');
 
         if (this.charts[canvasId]) {
@@ -395,7 +396,7 @@ class ChartManager {
         // Create scatter plot data
         const scatterData = data.map(d => ({
             x: d.l1Basefee / 1e9, // gwei
-            y: (d.estimatedFee * 1e9) / (gasPerTx || 200) // Convert ETH to per-gas gwei (corrected default)
+            y: d.estimatedFee * 1e9 // CANONICAL: already per-gas ETH, convert to gwei
         }));
 
         this.charts[canvasId] = new Chart(ctx, {
@@ -577,14 +578,14 @@ class ChartManager {
         return evaluations;
     }
 
-    createL1EstimationChart(canvasId, data, gasPerTx) {
+    createL1EstimationChart(canvasId, data, Q_bar) {
         const ctx = document.getElementById(canvasId).getContext('2d');
 
         // Parameter validation - fail fast with no fallbacks
-        if (!gasPerTx || gasPerTx <= 0) {
-            console.error(`🚨 CRITICAL: gasPerTx parameter is ${gasPerTx} for L1EstimationChart`);
-            console.error(`Expected: ~20,000 gas per transaction from simulator`);
-            console.error(`This will cause 100x+ scale error. Chart will show 0 values.`);
+        if (!Q_bar || Q_bar <= 0) {
+            console.error(`🚨 CRITICAL: Q̄ parameter is ${Q_bar} for L1EstimationChart`);
+            console.error(`Expected: ~690,000 L2 gas per batch from canonical calculator`);
+            console.error(`This will cause scale error. Chart will show 0 values.`);
         }
 
         if (this.charts[canvasId]) {
@@ -606,12 +607,12 @@ class ChartManager {
         const spotBasefeeData = data.map(d => d.l1Basefee / 1e9); // Convert wei to gwei
         const estimatedGasFeeData = data.map((d, i) => {
             const estimatedFee = d.estimatedFee || d.estimated_fee || 0;
-            if (!gasPerTx || gasPerTx <= 0) {
-                console.error(`❌ Data quality issue at index ${i}: gasPerTx is ${gasPerTx} (expected >0)`);
+            if (typeof estimatedFee !== 'number' || isNaN(estimatedFee)) {
+                console.error(`❌ Data quality issue at index ${i}: estimatedFee is ${estimatedFee} (expected number)`);
                 console.error(`This will cause incorrect scaling. Expected range: 44-184 gwei for PEPE crisis`);
                 return 0; // Make error visible in chart
             }
-            return (estimatedFee * 1e9) / gasPerTx; // Convert ETH to gwei per gas
+            return estimatedFee * 1e9; // CANONICAL: already ETH per L2-gas, convert to gwei
         });
 
         this.charts[canvasId] = new Chart(ctx, {

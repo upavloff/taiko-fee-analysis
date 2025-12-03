@@ -75,16 +75,16 @@
                     </div>
                 </div>
 
-                <!-- Transactions Per Block -->
+                <!-- Q̄ (Typical L2 Gas per Batch) -->
                 <div class="parameter-group">
-                    <label for="tx-per-block-slider" class="parameter-label">
-                        Transactions Per L1 Batch: <span id="tx-per-block-value">100</span>
-                        <span class="tooltip" data-tooltip="Number of transactions per L1 batch submission. Gas cost per tx = 200k gas ÷ txs per batch. Higher values = lower gas cost per tx. Matches Python implementation defaults.">ℹ️</span>
+                    <label for="Q-bar-slider" class="parameter-label">
+                        Q̄ (Typical L2 Gas per Batch): <span id="Q-bar-value">690,000</span>
+                        <span class="tooltip" data-tooltip="Typical L2 gas per batch (governance constant). Used in vault healing: C_vault(t) = D(t)/(H × Q̄). Also serves as reference unit for α_data estimation from empirical Taiko transaction data. Higher Q̄ = slower vault healing but more realistic batch modeling.">ℹ️</span>
                     </label>
-                    <input type="range" id="tx-per-block-slider" class="parameter-slider" min="50" max="500" step="10" value="100">
+                    <input type="range" id="Q-bar-slider" class="parameter-slider" min="300000" max="1000000" step="10000" value="690000">
                     <div class="range-labels">
-                        <span>50</span>
-                        <span>500</span>
+                        <span>300k</span>
+                        <span>1M</span>
                     </div>
                 </div>
 
@@ -305,25 +305,31 @@
                 <div class="formula-content">
                     <h2>Taiko Fee Mechanism</h2>
                     <div class="formula-container-main">
-                        $$F_E(t) = \max\left(\mu \times C_{L1}(t) + \nu \times \frac{D(t)}{H}, F_{\text{min}}\right)$$
+                        $$F_{L2,\text{raw}}(t) = \mu \times C_{DA}(t) + \nu \times C_{\text{vault}}(t)$$
                         <button id="formula-info-btn" class="formula-info-btn" title="Toggle formula parameters">ⓘ</button>
                     </div>
                     <!-- Compact Info Box -->
                     <div id="formula-info-box" class="formula-info-box" style="display: none;">
                         <div class="info-grid">
                             <div class="info-item">
-                                <strong>Main Formula Variables:</strong><br>
-                                $F_E(t)$: Estimated fee at time t | $\mu$: L1 weight (<span id="info-mu">0.4</span>) | $\nu$: Deficit weight (<span id="info-nu">0.3</span>)<br>
-                                $C_{L1}(t)$: L1 cost per tx | $D(t)$: Vault deficit | $H$: Horizon (<span id="info-h">144</span> steps) | $F_{\min}$: Min fee (1e-8 ETH)
+                                <strong>What is Taiko's L2 Sustainability Basefee?</strong><br>
+                                Taiko uses a <strong>dual-component fee system</strong> that transforms volatile L1 DA costs into smooth L2 per-gas fees. Unlike traditional L2s that only consider network congestion, Taiko's fees dynamically adjust based on both L1 Ethereum costs and the protocol's vault balance state.
                             </div>
                             <div class="info-item">
-                                <strong>L1 Cost Calculation:</strong><br>
-                                $$C_{L1}(t) = \frac{\text{BaseFee}_{L1}(t) \times \text{Gas}_{\text{per tx}}}{10^{18}}$$
-                                Where:<br>
-                                • $\text{BaseFee}_{L1}(t)$ = Current L1 basefee at time $t$ (in wei)<br>
-                                • $\text{Gas}_{\text{per tx}} = \max\left(\frac{200{,}000}{\text{Expected Tx Volume}}, 200\right)$ gas<br>
-                                • Economies of scale: Higher expected volume → Lower gas cost per transaction<br>
-                                • Floor at 200 gas accounts for minimum batch overhead
+                                <strong>How It Works:</strong><br>
+                                <strong>🔗 DA Cost Pass-through Component:</strong> $$\mu \cdot C_{DA}(t) = \mu \cdot \alpha_{\text{data}} \cdot \hat{B}_{L1}(t)$$
+                                Covers smoothed marginal DA cost per L2-gas. $\hat{B}_{L1}(t)$ is the EMA-smoothed L1 basefee using $\hat{B}_{L1}(t) = (1-\lambda_B)\hat{B}_{L1}(t-1) + \lambda_B B_{L1}(t)$ for stability, and $\alpha_{\text{data}}$ is empirically estimated from real Taiko transactions as the L1 DA gas overhead per L2-gas unit.<br><br>
+                                <strong>💰 Vault Healing Component:</strong> $$\nu \cdot C_{\text{vault}}(t) = \nu \cdot \frac{D(t)}{H \cdot \bar{Q}}$$
+                                Self-healing surcharge where $D(t) = T - V(t)$ is vault deficit, $H$ is recovery horizon, and $\bar{Q}$ is typical L2-gas per batch. The $\bar{Q}$ parameter also serves as the reference unit for estimating $\alpha_{\text{data}}$ from empirical data: $\alpha_{\text{data}} \approx E[\text{L1 gas used} / \bar{Q}]$. Prevents thin-market taxation.<br><br>
+                                <strong>🎯 UX Wrapper:</strong> The raw fee $F_{L2}^{\text{raw}}(t)$ is clipped to $[F_{\min}, F_{\max}]$ bounds and rate-limited by $\kappa_\uparrow, \kappa_\downarrow$ to ensure predictable fee transitions.
+                            </div>
+                            <div class="info-item">
+                                <strong>Mathematical Semantics & Parameter Estimation:</strong><br>
+                                <strong>μ ∈ [0,1]:</strong> DA cost pass-through coefficient. μ=1 gives full volatility pass-through; μ=0 lets vault absorb short-term DA volatility.<br>
+                                <strong>ν ∈ [0,1]:</strong> Vault healing intensity. Under typical load $Q(t) ≈ \bar{Q}$, deficit reduction per batch ≈ $\frac{\nu \cdot D(t)}{H}$, so ν directly controls deficit correction aggressiveness.<br>
+                                <strong>H > 0:</strong> Recovery horizon in batches under typical load $\bar{Q}$. For ν=1, current deficit $D(t)$ would be amortized linearly over $H$ typical batches.<br>
+                                <strong>$\alpha_{\text{data}}$ Estimation:</strong> Empirically calibrated from Taiko L1 proposeBlock transactions as $\alpha_{\text{data}} ≈ \text{Average}(\text{L1 DA gas used} / \bar{Q})$, representing the data availability overhead per L2-gas unit.<br>
+                                <strong>$\lambda_B$ Calibration:</strong> EMA smoothing factor optimized to balance L1 responsiveness vs fee stability, typically 0.1-0.5.
                             </div>
                         </div>
                     </div>
@@ -438,15 +444,15 @@
                                 <div class="objective-description">
                                     <p>Focuses on making fees affordable and predictable for users.</p>
                                     <div class="mathematical-formulation">
-                                        $$\text{UX}(\mu, \nu, H) = \max \left[ w_1 \cdot \mathcal{A}(f) + w_2 \cdot \mathcal{S}(f) + w_3 \cdot \mathcal{P}_{\text{1h}}(f) + w_4 \cdot \mathcal{P}_{\text{6h}}(f) \right]$$
+                                        $$J_{\text{UX}}(\theta) = a_1 \cdot \text{CV}_F(\theta) + a_2 \cdot J_{\Delta F}(\theta) + a_3 \cdot \max\big(0, F_{95}(\theta) - F_{\text{UX-cap}}\big)$$
                                         <div class="formula-components">
-                                            <small>where $\mathcal{A}(f) = -\log(1 + \bar{f} \times 1000)$, $\mathcal{S}(f) = 1 - \text{CV}(f)$, $\mathcal{P}_t(f)$ = predictability over window $t$</small>
+                                            <small>where $\text{CV}_F(\theta) = \frac{\sqrt{\text{Var}_F(\theta)}}{m_F(\theta)}$, $J_{\Delta F}(\theta) = \text{p95}_t\left(\frac{|F_{L2}(t;\theta) - F_{L2}(t-1;\theta)|}{F_{L2}(t-1;\theta)}\right)$, $F_{95}(\theta)$ = 95th percentile fee</small>
                                         </div>
                                     </div>
                                     <div class="metrics-preview">
-                                        <span class="metric-tag clickable-metric" data-metric="fee_affordability">💰 Fee Affordability</span>
-                                        <span class="metric-tag clickable-metric" data-metric="fee_stability">📈 Fee Stability</span>
-                                        <span class="metric-tag clickable-metric" data-metric="fee_predictability_1h">🔮 Predictability</span>
+                                        <span class="metric-tag clickable-metric" data-metric="fee_volatility">📈 Fee Volatility (CV_F)</span>
+                                        <span class="metric-tag clickable-metric" data-metric="fee_jumpiness">⚡ Fee Jumpiness (J_ΔF)</span>
+                                        <span class="metric-tag clickable-metric" data-metric="high_fee_penalty">🚨 High Fee Penalty</span>
                                     </div>
                                 </div>
                             </div>
@@ -459,15 +465,15 @@
                                 <div class="objective-description">
                                     <p>Ensures the protocol remains secure and well-funded under stress.</p>
                                     <div class="mathematical-formulation">
-                                        $$\text{Safety}(\mu, \nu, H) = \max \left[ w_5 \cdot (1 - P_{\text{insol}}) + w_6 \cdot (1 - \mathcal{D}_{\text{weighted}}) + w_7 \cdot \mathcal{R}_{\text{stress}} \right]$$
+                                        $$J_{\text{safe}}(\theta) = b_1 \cdot \text{DD}(\theta) + b_2 \cdot D_{\max}(\theta) + b_3 \cdot \text{RecoveryTime}_{\text{shock}}(\theta)$$
                                         <div class="formula-components">
-                                            <small>where $P_{\text{insol}} = \mathbb{P}(V &lt; V_{\text{crit}})$, $\mathcal{D}_{\text{weighted}} = \frac{\sum (d_i \cdot t_i)^2}{T}$, $\mathcal{R}_{\text{stress}}$ = stress recovery rate</small>
+                                            <small>where $\text{DD}(\theta) = \sum_t (T - V(t;\theta))_+$, $D_{\max}(\theta) = \max_t (T - V(t;\theta))_+$, RecoveryTime = batches to return within target band after shock</small>
                                         </div>
                                     </div>
                                     <div class="metrics-preview">
-                                        <span class="metric-tag clickable-metric" data-metric="insolvency_protection">🚨 Insolvency Protection</span>
-                                        <span class="metric-tag clickable-metric" data-metric="deficit_duration">⏰ Deficit Control</span>
-                                        <span class="metric-tag clickable-metric" data-metric="vault_stress">💪 Resilience</span>
+                                        <span class="metric-tag clickable-metric" data-metric="deficit_duration">⏰ Deficit Duration (DD)</span>
+                                        <span class="metric-tag clickable-metric" data-metric="max_deficit_depth">📉 Max Deficit Depth</span>
+                                        <span class="metric-tag clickable-metric" data-metric="recovery_time">🔄 Recovery Time</span>
                                     </div>
                                 </div>
                             </div>
@@ -480,14 +486,14 @@
                                 <div class="objective-description">
                                     <p>Optimizes capital usage and operational performance.</p>
                                     <div class="mathematical-formulation">
-                                        $$\text{Efficiency}(\mu, \nu, H) = \max \left[ w_8 \cdot \mathcal{U}_{\text{vault}} + w_9 \cdot \mathcal{C}_{\text{correction}} + w_{10} \cdot \mathcal{E}_{\text{capital}} \right]$$
+                                        $$J_{\text{eff}}(\theta) = c_1 \cdot T + c_2 \cdot \overline{|V-T|}(\theta) + c_3 \cdot \text{CapEff}(\theta)$$
                                         <div class="formula-components">
-                                            <small>where $\mathcal{U}_{\text{vault}} = 1 - \frac{\overline{|V - V_{\text{target}}|}}{V_{\text{target}}}$, $\mathcal{C}_{\text{correction}} = \frac{\Delta d}{\Delta t}$, $\mathcal{E}_{\text{capital}}$ = capital utilization efficiency</small>
+                                            <small>where $T$ = target vault size, $\overline{|V-T|}(\theta) = \mathbb{E}_t\big[ |V(t;\theta) - T| \big]$, $\text{CapEff}(\theta) = \frac{T}{\mathbb{E}_t[Q(t)]}$ = capital per throughput</small>
                                         </div>
                                     </div>
                                     <div class="metrics-preview">
-                                        <span class="metric-tag clickable-metric" data-metric="vault_utilization">📊 Vault Utilization</span>
-                                        <span class="metric-tag clickable-metric" data-metric="deficit_correction">⚡ Correction Speed</span>
+                                        <span class="metric-tag clickable-metric" data-metric="target_vault_cost">💰 Target Vault Cost (T)</span>
+                                        <span class="metric-tag clickable-metric" data-metric="vault_deviation">📊 Vault Deviation</span>
                                         <span class="metric-tag clickable-metric" data-metric="capital_efficiency">🎯 Capital Efficiency</span>
                                     </div>
                                 </div>

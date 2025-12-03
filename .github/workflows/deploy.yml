@@ -46,6 +46,13 @@ jobs:
         run: |
           mkdir -p web_deploy
 
+          # Ensure root files are synced from web_src if needed
+          if [ -f "sync-web-versions.sh" ]; then
+            chmod +x sync-web-versions.sh
+            ./sync-web-versions.sh src-to-root
+            echo "✅ Synced web_src to root before deployment"
+          fi
+
           # Copy only essential web files
           cp index.html web_deploy/
           cp *.js web_deploy/ 2>/dev/null || echo "No JS files found"

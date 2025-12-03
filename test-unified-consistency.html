@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Fee Mechanism Consistency Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        .test-container {
+            background: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #007acc;
+        }
+
+        h1 {
+            color: #4ec9b0;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: #dcdcaa;
+            border-bottom: 1px solid #404040;
+            padding-bottom: 10px;
+        }
+
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .test-pass {
+            background: rgba(106, 153, 85, 0.2);
+            border: 1px solid #6a9955;
+            color: #b5cea8;
+        }
+
+        .test-fail {
+            background: rgba(244, 71, 71, 0.2);
+            border: 1px solid #f44747;
+            color: #f48771;
+        }
+
+        .test-warn {
+            background: rgba(255, 204, 0, 0.2);
+            border: 1px solid #ffcc00;
+            color: #ffcc00;
+        }
+
+        .formula {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 3px solid #007acc;
+            font-size: 14px;
+        }
+
+        .values-table {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .value-item {
+            background: #2d2d30;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .value-label {
+            color: #9cdcfe;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .value-number {
+            color: #b5cea8;
+            font-weight: bold;
+        }
+
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            margin: 10px 5px;
+        }
+
+        button:hover {
+            background: #005a9e;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-pass { background: #6a9955; }
+        .status-fail { background: #f44747; }
+        .status-warn { background: #ffcc00; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔬 Unified Fee Mechanism Consistency Test</h1>
+
+        <div class="formula">
+            <strong>Testing Implementation Consistency:</strong><br>
+            F_L2_raw(t) = μ × C_DA(t) + ν × C_vault(t)<br>
+            C_DA(t) = α_data × B̂_L1(t)<br>
+            C_vault(t) = D(t) / (H × Q̄)<br>
+            <br>
+            <strong>With UX Wrapper:</strong><br>
+            1. Clipping: F_clip = min(max(F_raw, F_min), F_max)<br>
+            2. Rate Limiting: F_final = rate_limit(F_clip, previous_fee)
+        </div>
+
+        <div class="test-container">
+            <h2>📋 Test Configuration</h2>
+            <div class="values-table">
+                <div class="value-item">
+                    <div class="value-label">Test Parameters</div>
+                    <div class="value-number">μ=0.1, ν=0.5, H=144</div>
+                </div>
+                <div class="value-item">
+                    <div class="value-label">L1 Basefee</div>
+                    <div class="value-number">20 gwei (20e9 wei)</div>
+                </div>
+                <div class="value-item">
+                    <div class="value-label">Vault Deficit</div>
+                    <div class="value-number">100 ETH</div>
+                </div>
+            </div>
+            <button onclick="runConsistencyTest()">🚀 Run Consistency Test</button>
+            <button onclick="runStressTest()">⚡ Run Stress Test</button>
+            <button onclick="clearResults()">🧹 Clear Results</button>
+        </div>
+
+        <div id="results-container">
+            <!-- Test results will be inserted here -->
+        </div>
+    </div>
+
+    <script src="unified-fee-mechanism.js"></script>
+    <script>
+        let testResults = [];
+
+        function clearResults() {
+            document.getElementById('results-container').innerHTML = '';
+            testResults = [];
+        }
+
+        function addResult(category, message, status) {
+            const statusClass = status === 'pass' ? 'test-pass' :
+                               status === 'fail' ? 'test-fail' : 'test-warn';
+            const statusIcon = status === 'pass' ? '✅' :
+                              status === 'fail' ? '❌' : '⚠️';
+
+            const result = {
+                category,
+                message: `${statusIcon} ${message}`,
+                status
+            };
+
+            testResults.push(result);
+            displayResults();
+        }
+
+        function displayResults() {
+            const container = document.getElementById('results-container');
+
+            // Group results by category
+            const grouped = {};
+            testResults.forEach(result => {
+                if (!grouped[result.category]) {
+                    grouped[result.category] = [];
+                }
+                grouped[result.category].push(result);
+            });
+
+            let html = '';
+            Object.keys(grouped).forEach(category => {
+                html += `<div class="test-container">`;
+                html += `<h2>${category}</h2>`;
+
+                grouped[category].forEach(result => {
+                    html += `<div class="test-result ${result.status === 'pass' ? 'test-pass' :
+                            result.status === 'fail' ? 'test-fail' : 'test-warn'}">`;
+                    html += result.message;
+                    html += `</div>`;
+                });
+
+                html += `</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function runConsistencyTest() {
+            clearResults();
+            addResult('🔄 Test Status', 'Starting unified fee mechanism consistency test...', 'warn');
+
+            try {
+                // Test 1: Parameter validation
+                addResult('🔧 Parameter Tests', 'Testing parameter validation...', 'warn');
+
+                const calculator = new UnifiedFeeModule.UnifiedFeeCalculator();
+                addResult('🔧 Parameter Tests', 'Calculator initialization successful', 'pass');
+
+                // Test 2: Component calculations
+                const l1_basefee_wei = 20e9;  // 20 gwei
+                const vault_deficit = 100;    // 100 ETH
+
+                addResult('🧮 Component Tests', 'Testing individual component calculations...', 'warn');
+
+                // Test C_DA calculation
+                const C_DA = calculator.calculateCDA(l1_basefee_wei);
+                const expected_C_DA = 0.22 * (l1_basefee_wei / 1e18);  // α_data * basefee_eth
+                const C_DA_error = Math.abs(C_DA - expected_C_DA) / expected_C_DA;
+
+                if (C_DA_error < 1e-10) {
+                    addResult('🧮 Component Tests', `C_DA calculation: ${C_DA.toExponential(6)} ETH/gas`, 'pass');
+                } else {
+                    addResult('🧮 Component Tests', `C_DA mismatch: got ${C_DA.toExponential(6)}, expected ${expected_C_DA.toExponential(6)}`, 'fail');
+                }
+
+                // Test C_vault calculation
+                const C_vault = calculator.calculateCVault(vault_deficit);
+                const expected_C_vault = vault_deficit / (144 * 200000);  // D / (H * Q_bar)
+                const C_vault_error = Math.abs(C_vault - expected_C_vault) / expected_C_vault;
+
+                if (C_vault_error < 1e-10) {
+                    addResult('🧮 Component Tests', `C_vault calculation: ${C_vault.toExponential(6)} ETH/gas`, 'pass');
+                } else {
+                    addResult('🧮 Component Tests', `C_vault mismatch: got ${C_vault.toExponential(6)}, expected ${expected_C_vault.toExponential(6)}`, 'fail');
+                }
+
+                // Test 3: Full fee calculation
+                addResult('💰 Fee Calculation Tests', 'Testing complete fee calculation pipeline...', 'warn');
+
+                const feeBreakdown = calculator.calculateFinalFee(l1_basefee_wei, vault_deficit);
+
+                addResult('💰 Fee Calculation Tests', `Raw fee: ${feeBreakdown.final_fee_gwei_per_gas.toFixed(6)} gwei/gas`, 'pass');
+                addResult('💰 Fee Calculation Tests', `Components - C_DA: ${feeBreakdown.C_DA.toExponential(3)}, C_vault: ${feeBreakdown.C_vault.toExponential(3)}`, 'pass');
+
+                // Test 4: EMA smoothing
+                addResult('📊 EMA Smoothing Tests', 'Testing L1 basefee smoothing...', 'warn');
+
+                const smoothed1 = calculator.updateSmoothedL1Basefee(10e9);  // 10 gwei
+                const smoothed2 = calculator.updateSmoothedL1Basefee(30e9);  // 30 gwei
+
+                if (smoothed1 === 10e9 / 1e18) {
+                    addResult('📊 EMA Smoothing Tests', 'Initial smoothing (no history): PASS', 'pass');
+                } else {
+                    addResult('📊 EMA Smoothing Tests', `Initial smoothing failed: got ${smoothed1}, expected ${10e9/1e18}`, 'fail');
+                }
+
+                // Test 5: UX wrapper
+                addResult('🎨 UX Wrapper Tests', 'Testing clipping and rate limiting...', 'warn');
+
+                const highFee = calculator.applyClipping(1e-3);  // Very high fee
+                if (highFee === calculator.params.F_max) {
+                    addResult('🎨 UX Wrapper Tests', 'Fee clipping (high): PASS', 'pass');
+                } else {
+                    addResult('🎨 UX Wrapper Tests', `Fee clipping failed: got ${highFee}, expected ${calculator.params.F_max}`, 'fail');
+                }
+
+                const lowFee = calculator.applyClipping(1e-15);  // Very low fee
+                if (lowFee === calculator.params.F_min) {
+                    addResult('🎨 UX Wrapper Tests', 'Fee clipping (low): PASS', 'pass');
+                } else {
+                    addResult('🎨 UX Wrapper Tests', `Fee clipping failed: got ${lowFee}, expected ${calculator.params.F_min}`, 'fail');
+                }
+
+                // Test 6: Parameter warnings
+                addResult('⚠️ Warning Tests', 'Testing parameter calibration warnings...', 'warn');
+
+                // Check if warnings were emitted (they should be for uncalibrated parameters)
+                addResult('⚠️ Warning Tests', 'Uncalibrated parameter warnings should appear in console', 'warn');
+                addResult('⚠️ Warning Tests', 'Check console for α_data, Q̄, and optimization warnings', 'warn');
+
+                // Final summary
+                const passCount = testResults.filter(r => r.status === 'pass').length;
+                const failCount = testResults.filter(r => r.status === 'fail').length;
+                const warnCount = testResults.filter(r => r.status === 'warn').length;
+
+                addResult('📊 Test Summary', `PASSED: ${passCount} | FAILED: ${failCount} | WARNINGS: ${warnCount}`,
+                         failCount > 0 ? 'fail' : 'pass');
+
+                if (failCount === 0) {
+                    addResult('🎉 Overall Result', 'JavaScript implementation CONSISTENT with specification', 'pass');
+                } else {
+                    addResult('❌ Overall Result', 'JavaScript implementation has INCONSISTENCIES', 'fail');
+                }
+
+            } catch (error) {
+                addResult('💥 Error', `Test failed with error: ${error.message}`, 'fail');
+                console.error('Test error:', error);
+            }
+        }
+
+        function runStressTest() {
+            addResult('⚡ Stress Test', 'Running stress test with edge cases...', 'warn');
+
+            try {
+                const calculator = new UnifiedFeeModule.UnifiedFeeCalculator();
+                let passCount = 0;
+                let totalTests = 0;
+
+                // Test edge cases
+                const testCases = [
+                    { l1_basefee: 1e6, deficit: 0, name: "Very low L1 fee, no deficit" },
+                    { l1_basefee: 1000e9, deficit: 10000, name: "Very high L1 fee, large deficit" },
+                    { l1_basefee: 0, deficit: 0, name: "Zero fees and deficit" },
+                    { l1_basefee: 1e9, deficit: 0.001, name: "Normal fee, tiny deficit" },
+                    { l1_basefee: 50e9, deficit: 5000, name: "High fee, moderate deficit" }
+                ];
+
+                testCases.forEach(testCase => {
+                    totalTests++;
+                    try {
+                        const result = calculator.calculateFinalFee(testCase.l1_basefee, testCase.deficit);
+
+                        // Basic sanity checks
+                        if (result.final_fee_eth_per_gas >= 0 &&
+                            result.final_fee_gwei_per_gas >= 0 &&
+                            !isNaN(result.final_fee_eth_per_gas)) {
+                            passCount++;
+                            addResult('⚡ Stress Test', `${testCase.name}: ${result.final_fee_gwei_per_gas.toFixed(6)} gwei`, 'pass');
+                        } else {
+                            addResult('⚡ Stress Test', `${testCase.name}: Invalid result`, 'fail');
+                        }
+                    } catch (error) {
+                        addResult('⚡ Stress Test', `${testCase.name}: Error - ${error.message}`, 'fail');
+                    }
+                });
+
+                addResult('⚡ Stress Test Summary', `Passed ${passCount}/${totalTests} edge case tests`,
+                         passCount === totalTests ? 'pass' : 'fail');
+
+            } catch (error) {
+                addResult('💥 Stress Test Error', `Stress test failed: ${error.message}`, 'fail');
+            }
+        }
+
+        // Auto-run basic test on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                addResult('🚀 Auto-Test', 'Running automatic consistency check...', 'warn');
+                runConsistencyTest();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

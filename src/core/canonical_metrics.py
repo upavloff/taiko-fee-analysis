@@ -81,6 +81,7 @@ class ComprehensiveMetrics:
     fee_predictability_1h: float
     fee_predictability_6h: float
     fee_rate_of_change_p95: float
+    fee_p95_gwei: float  # High percentile fees metric
 
     # Protocol Safety Metrics
     time_underfunded_pct: float
@@ -89,6 +90,7 @@ class ComprehensiveMetrics:
     vault_stress_resilience: float
     deficit_recovery_rate: float
     underfunding_resistance: float
+    recovery_time_after_shock: float  # Formal shock recovery metric
 
     # Economic Efficiency Metrics
     vault_utilization_score: float
@@ -96,6 +98,7 @@ class ComprehensiveMetrics:
     cost_coverage_ratio: float
     revenue_efficiency: float
     deficit_correction_rate: float
+    capital_per_throughput: float  # Formal capital efficiency metric
 
     # System Performance Metrics
     l1_tracking_error: float
@@ -173,7 +176,7 @@ class CanonicalMetricsCalculator:
 
         # Economic Efficiency Metrics
         efficiency_metrics = self._calculate_economic_efficiency_metrics(
-            vault_balances, vault_deficits, fees_collected, l1_costs_paid
+            vault_balances, vault_deficits, fees_collected, l1_costs_paid, tx_volumes
         )
 
         # System Performance Metrics
@@ -196,6 +199,7 @@ class CanonicalMetricsCalculator:
             fee_predictability_1h=user_metrics['fee_predictability_1h'],
             fee_predictability_6h=user_metrics['fee_predictability_6h'],
             fee_rate_of_change_p95=user_metrics['fee_rate_of_change_p95'],
+            fee_p95_gwei=user_metrics['fee_p95_gwei'],
 
             # Protocol Safety
             time_underfunded_pct=safety_metrics['time_underfunded_pct'],
@@ -204,6 +208,7 @@ class CanonicalMetricsCalculator:
             vault_stress_resilience=safety_metrics['vault_stress_resilience'],
             deficit_recovery_rate=safety_metrics['deficit_recovery_rate'],
             underfunding_resistance=safety_metrics['underfunding_resistance'],
+            recovery_time_after_shock=safety_metrics['recovery_time_after_shock'],
 
             # Economic Efficiency
             vault_utilization_score=efficiency_metrics['vault_utilization_score'],
@@ -211,6 +216,7 @@ class CanonicalMetricsCalculator:
             cost_coverage_ratio=efficiency_metrics['cost_coverage_ratio'],
             revenue_efficiency=efficiency_metrics['revenue_efficiency'],
             deficit_correction_rate=efficiency_metrics['deficit_correction_rate'],
+            capital_per_throughput=efficiency_metrics['capital_per_throughput'],
 
             # System Performance
             l1_tracking_error=performance_metrics['l1_tracking_error'],
@@ -283,8 +289,11 @@ class CanonicalMetricsCalculator:
         fee_predictability_1h = self._calculate_predictability(fees, self.thresholds.short_term_window)
         fee_predictability_6h = self._calculate_predictability(fees, self.thresholds.long_term_window)
 
-        # Fee rate of change (95th percentile)
+        # Fee rate of change (95th percentile) - jumpiness metric
         fee_rate_of_change_p95 = self._calculate_rate_of_change_p95(fees)
+
+        # High percentile fees (95th percentile) - F_95 metric
+        fee_p95_gwei = self._calculate_fee_p95(fees)
 
         return {
             'average_fee_gwei': average_fee_gwei,
@@ -292,7 +301,8 @@ class CanonicalMetricsCalculator:
             'fee_affordability_score': fee_affordability_score,
             'fee_predictability_1h': fee_predictability_1h,
             'fee_predictability_6h': fee_predictability_6h,
-            'fee_rate_of_change_p95': fee_rate_of_change_p95
+            'fee_rate_of_change_p95': fee_rate_of_change_p95,
+            'fee_p95_gwei': fee_p95_gwei  # New F_95 metric
         }
 
     def _calculate_protocol_safety_metrics(self, vault_balances: np.ndarray, vault_deficits: np.ndarray) -> Dict[str, float]:
@@ -317,20 +327,25 @@ class CanonicalMetricsCalculator:
         # Underfunding resistance
         underfunding_resistance = self._calculate_underfunding_resistance(vault_deficits)
 
+        # Recovery time after shock (formal shock recovery metric)
+        recovery_time_after_shock = self._calculate_recovery_time_after_shock(vault_balances, vault_deficits)
+
         return {
             'time_underfunded_pct': time_underfunded_pct,
             'max_deficit_ratio': max_deficit_ratio,
             'insolvency_protection_score': insolvency_protection_score,
             'vault_stress_resilience': vault_stress_resilience,
             'deficit_recovery_rate': deficit_recovery_rate,
-            'underfunding_resistance': underfunding_resistance
+            'underfunding_resistance': underfunding_resistance,
+            'recovery_time_after_shock': recovery_time_after_shock  # New formal shock recovery metric
         }
 
     def _calculate_economic_efficiency_metrics(self,
                                              vault_balances: np.ndarray,
                                              vault_deficits: np.ndarray,
                                              fees_collected: np.ndarray,
-                                             l1_costs_paid: np.ndarray) -> Dict[str, float]:
+                                             l1_costs_paid: np.ndarray,
+                                             tx_volumes: Optional[np.ndarray] = None) -> Dict[str, float]:
         """Calculate metrics related to economic efficiency."""
 
         # Vault utilization score (deviation from target)
@@ -348,12 +363,16 @@ class CanonicalMetricsCalculator:
         # Deficit correction rate
         deficit_correction_rate = self._calculate_deficit_correction_rate_efficiency(vault_deficits)
 
+        # Capital per throughput (T / E[Q(t)])
+        capital_per_throughput = self._calculate_capital_per_throughput(tx_volumes)
+
         return {
             'vault_utilization_score': vault_utilization_score,
             'capital_efficiency': capital_efficiency,
             'cost_coverage_ratio': cost_coverage_ratio,
             'revenue_efficiency': revenue_efficiency,
-            'deficit_correction_rate': deficit_correction_rate
+            'deficit_correction_rate': deficit_correction_rate,
+            'capital_per_throughput': capital_per_throughput  # New formal efficiency metric
         }
 
     def _calculate_system_performance_metrics(self,
@@ -498,6 +517,19 @@ class CanonicalMetricsCalculator:
 
         return np.percentile(rate_changes, 95) if rate_changes else 0.0
 
+    def _calculate_fee_p95(self, fees: np.ndarray) -> float:
+        """
+        Calculate 95th percentile of fees in gwei.
+
+        This implements the F_95 = p95(F_L2(t)) metric for high percentile fee analysis.
+        """
+        if len(fees) == 0:
+            return 0.0
+
+        # Convert to gwei and calculate 95th percentile
+        fees_gwei = fees * 1e9
+        return np.percentile(fees_gwei, 95)
+
     def _calculate_insolvency_protection(self, vault_balances: np.ndarray) -> float:
         """Calculate insolvency protection score."""
         min_balance = np.min(vault_balances)
@@ -577,6 +609,83 @@ class CanonicalMetricsCalculator:
         resistance = max(0.0, 1.0 - max_deficit_ratio)
         return resistance
 
+    def _calculate_recovery_time_after_shock(self, vault_balances: np.ndarray, vault_deficits: np.ndarray) -> float:
+        """
+        Calculate formal recovery time after shock scenarios.
+
+        This implements the recovery time metric from the formal specification:
+        time to return V(t) within δT of target after a synthetic L1 fee spike.
+
+        Args:
+            vault_balances: Vault balance trajectory
+            vault_deficits: Vault deficit trajectory
+
+        Returns:
+            Normalized recovery time score (higher = faster recovery)
+        """
+        if len(vault_balances) < 10:  # Need minimum length for shock detection
+            return 1.0
+
+        # Define shock criteria
+        shock_threshold = self.target_vault_balance * 0.7  # 30% below target
+        recovery_threshold = self.target_vault_balance * 0.95  # Within 5% of target
+        max_acceptable_recovery = 200  # Maximum acceptable recovery time (steps)
+
+        # Find shock events (significant drops in vault balance)
+        shock_recovery_times = []
+
+        # Look for rapid drops followed by recovery
+        for i in range(len(vault_balances) - 1):
+            current_balance = vault_balances[i]
+
+            # Detect shock start: vault drops significantly below shock threshold
+            if current_balance < shock_threshold:
+                shock_start = i
+
+                # Look for recovery from this shock
+                for j in range(i + 1, min(len(vault_balances), i + max_acceptable_recovery + 1)):
+                    recovery_balance = vault_balances[j]
+
+                    # Recovery detected: vault balance returns to acceptable level
+                    if recovery_balance >= recovery_threshold:
+                        recovery_time = j - shock_start
+                        shock_recovery_times.append(recovery_time)
+                        break
+
+        # If no clear shock events found, use deficit-based analysis
+        if not shock_recovery_times:
+            # Alternative: measure recovery from deficit peaks
+            deficit_peaks = []
+
+            # Find deficit peaks (local maxima above threshold)
+            deficit_threshold = self.target_vault_balance * 0.2  # 20% of target
+
+            for i in range(1, len(vault_deficits) - 1):
+                if (vault_deficits[i] > deficit_threshold and
+                    vault_deficits[i] > vault_deficits[i-1] and
+                    vault_deficits[i] > vault_deficits[i+1]):
+
+                    peak_start = i
+
+                    # Find recovery from this deficit peak
+                    for j in range(i + 1, min(len(vault_deficits), i + max_acceptable_recovery + 1)):
+                        if vault_deficits[j] <= deficit_threshold * 0.1:  # Recovered to < 2% deficit
+                            recovery_time = j - peak_start
+                            shock_recovery_times.append(recovery_time)
+                            break
+
+        # Calculate score based on recovery times
+        if not shock_recovery_times:
+            return 1.0  # No significant shocks detected
+
+        avg_recovery_time = np.mean(shock_recovery_times)
+
+        # Normalize score: faster recovery = higher score
+        # Perfect score (1.0) for instant recovery, zero score for max_acceptable_recovery
+        score = max(0.0, 1.0 - avg_recovery_time / max_acceptable_recovery)
+
+        return score
+
     def _calculate_vault_utilization(self, vault_balances: np.ndarray) -> float:
         """Calculate vault utilization efficiency."""
         deviations = np.abs(vault_balances - self.target_vault_balance) / self.target_vault_balance
@@ -624,6 +733,33 @@ class CanonicalMetricsCalculator:
     def _calculate_deficit_correction_rate_efficiency(self, vault_deficits: np.ndarray) -> float:
         """Calculate deficit correction rate for efficiency metrics."""
         return self._calculate_deficit_recovery_rate(vault_deficits)
+
+    def _calculate_capital_per_throughput(self, tx_volumes: Optional[np.ndarray] = None) -> float:
+        """
+        Calculate capital per throughput metric.
+
+        This implements the T / E[Q(t)] metric from the formal specification:
+        target vault balance divided by expected throughput.
+
+        Args:
+            tx_volumes: Transaction volumes per time step (optional)
+
+        Returns:
+            Capital efficiency ratio (lower = more efficient)
+        """
+        if tx_volumes is None or len(tx_volumes) == 0:
+            # Fallback: assume baseline throughput
+            avg_throughput = 100.0  # Default transactions per step
+        else:
+            avg_throughput = np.mean(tx_volumes)
+
+        if avg_throughput <= 0:
+            return float('inf')  # Infinite capital per transaction (worst case)
+
+        # Calculate capital per throughput: T / E[Q(t)]
+        capital_per_throughput = self.target_vault_balance / avg_throughput
+
+        return capital_per_throughput
 
     def _calculate_l1_tracking_error(self, fees: np.ndarray, l1_basefees: np.ndarray) -> float:
         """Calculate normalized tracking error between fees and L1 costs."""

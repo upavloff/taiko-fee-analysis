@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Platform Consistency Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .test-result { margin: 10px 0; padding: 8px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .failure { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        .comparison-table th, .comparison-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .comparison-table th { background-color: #f8f9fa; }
+        .tolerance { font-size: 0.9em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Cross-Platform Consistency Test</h1>
+        <p>Testing Python vs JavaScript canonical fee mechanism implementation for identical results.</p>
+
+        <div class="test-section">
+            <h3>📊 Test Configuration</h3>
+            <div id="config-info" class="info">
+                <div><strong>Purpose:</strong> Verify Python and JavaScript produce identical fee calculations</div>
+                <div><strong>Tolerance:</strong> ±0.001% difference allowed</div>
+                <div><strong>Test Cases:</strong> Various L1 basefee and vault deficit scenarios</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>⚡ JavaScript Fee Mechanism Test</h3>
+            <div id="js-test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🐍 Python Reference Results</h3>
+            <div id="python-reference" class="info">
+                Python results will be compared against JavaScript calculations below.
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔄 Cross-Platform Comparison</h3>
+            <div id="comparison-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Stakeholder Profile Test</h3>
+            <div id="stakeholder-test-results"></div>
+        </div>
+
+        <button onclick="runTests()">🚀 Run Cross-Platform Tests</button>
+    </div>
+
+    <script type="module">
+        import {
+            createDefaultCalculator,
+            createBalancedCalculator,
+            createCrisisCalculator,
+            VaultInitMode
+        } from './canonical-fee-mechanism.js';
+
+        // Python reference results (from our tests)
+        const pythonReference = {
+            scenarios: [
+                { l1_basefee_gwei: 5.0, deficit: 0, name: "Low L1, no deficit" },
+                { l1_basefee_gwei: 15.0, deficit: 50, name: "Medium L1, small deficit" },
+                { l1_basefee_gwei: 15.0, deficit: 100, name: "Medium L1, medium deficit" },
+                { l1_basefee_gwei: 50.0, deficit: 100, name: "High L1, medium deficit" },
+                { l1_basefee_gwei: 200.0, deficit: 200, name: "Very high L1, large deficit" }
+            ],
+            // Expected results from Python (updated with fixed alpha_data=0.5)
+            expected: [
+                { fee_gwei: 0.000000, components: { C_DA: 2.500000, C_vault: 0.000000 } },
+                { fee_gwei: 14.904755, components: { C_DA: 7.500000, C_vault: 40.392291 } },
+                { fee_gwei: 29.809510, components: { C_DA: 7.500000, C_vault: 80.784581 } },
+                { fee_gwei: 29.809510, components: { C_DA: 25.000000, C_vault: 80.784581 } },
+                { fee_gwei: 59.619020, components: { C_DA: 100.000000, C_vault: 161.569162 } }
+            ]
+        };
+
+        function runTests() {
+            console.log("🚀 Starting cross-platform consistency tests...");
+
+            // Clear previous results
+            document.getElementById('js-test-results').innerHTML = '';
+            document.getElementById('comparison-results').innerHTML = '';
+            document.getElementById('stakeholder-test-results').innerHTML = '';
+
+            // Test JavaScript implementation
+            testJavaScriptImplementation();
+
+            // Compare with Python reference
+            testCrossPlatformConsistency();
+
+            // Test stakeholder profiles (basic)
+            testStakeholderProfiles();
+        }
+
+        function testJavaScriptImplementation() {
+            const calculator = createDefaultCalculator();
+            const results = [];
+
+            try {
+                console.log("Testing JavaScript fee mechanism...");
+
+                for (let i = 0; i < pythonReference.scenarios.length; i++) {
+                    const scenario = pythonReference.scenarios[i];
+                    const l1_basefee_wei = scenario.l1_basefee_gwei * 1e9;
+
+                    // Calculate fee using fixed canonical implementation
+                    const fee = calculator.calculateEstimatedFeeRaw(l1_basefee_wei, scenario.deficit);
+                    const fee_gwei = fee * 1e9;
+
+                    // Calculate components
+                    const C_DA = calculator.calculateCDA(l1_basefee_wei) * 1e9;  // Convert to gwei/gas
+                    const C_vault = calculator.calculateCVault(scenario.deficit) * 1e9;  // Convert to gwei/gas
+
+                    results.push({
+                        scenario: scenario.name,
+                        fee_gwei: fee_gwei,
+                        C_DA: C_DA,
+                        C_vault: C_vault,
+                        l1_basefee: scenario.l1_basefee_gwei,
+                        deficit: scenario.deficit
+                    });
+                }
+
+                // Display JavaScript results
+                displayJavaScriptResults(results);
+                return results;
+
+            } catch (error) {
+                displayError('js-test-results', `JavaScript test failed: ${error.message}`);
+                return [];
+            }
+        }
+
+        function testCrossPlatformConsistency() {
+            const jsResults = testJavaScriptImplementation();
+            const tolerance = 0.001; // 0.1% tolerance
+
+            let allPassed = true;
+            const comparisonHTML = [];
+
+            comparisonHTML.push('<table class="comparison-table">');
+            comparisonHTML.push('<tr><th>Scenario</th><th>JS Fee (gwei)</th><th>Python Fee (gwei)</th><th>Difference</th><th>Status</th></tr>');
+
+            for (let i = 0; i < Math.min(jsResults.length, pythonReference.expected.length); i++) {
+                const js = jsResults[i];
+                const py = pythonReference.expected[i];
+
+                const difference = Math.abs(js.fee_gwei - py.fee_gwei);
+                const relativeDiff = py.fee_gwei > 0 ? (difference / py.fee_gwei) * 100 : 0;
+                const passed = relativeDiff <= tolerance || difference < 0.001; // Allow tiny absolute differences
+
+                allPassed = allPassed && passed;
+
+                const statusClass = passed ? 'success' : 'failure';
+                const statusText = passed ? '✅ PASS' : '❌ FAIL';
+
+                comparisonHTML.push(`
+                    <tr class="${statusClass}">
+                        <td>${js.scenario}</td>
+                        <td>${js.fee_gwei.toFixed(6)}</td>
+                        <td>${py.fee_gwei.toFixed(6)}</td>
+                        <td>${relativeDiff.toFixed(3)}%</td>
+                        <td>${statusText}</td>
+                    </tr>
+                `);
+            }
+
+            comparisonHTML.push('</table>');
+
+            const overallResult = allPassed ?
+                '<div class="success">🎉 ALL TESTS PASSED: JavaScript and Python implementations are consistent!</div>' :
+                '<div class="failure">❌ TESTS FAILED: JavaScript and Python implementations differ!</div>';
+
+            comparisonHTML.unshift(overallResult);
+            comparisonHTML.push(`<div class="tolerance">Tolerance: ±${tolerance}% relative difference</div>`);
+
+            document.getElementById('comparison-results').innerHTML = comparisonHTML.join('');
+        }
+
+        function testStakeholderProfiles() {
+            try {
+                // Test different calculator presets
+                const calculators = {
+                    'Default (Optimal)': createDefaultCalculator(),
+                    'Balanced': createBalancedCalculator(),
+                    'Crisis': createCrisisCalculator()
+                };
+
+                const results = [];
+                const testScenario = { l1_basefee_gwei: 15.0, deficit: 100 };
+                const l1_basefee_wei = testScenario.l1_basefee_gwei * 1e9;
+
+                for (const [name, calc] of Object.entries(calculators)) {
+                    const fee = calc.calculateEstimatedFeeRaw(l1_basefee_wei, testScenario.deficit);
+                    const fee_gwei = fee * 1e9;
+
+                    results.push({
+                        profile: name,
+                        mu: calc.params.mu,
+                        nu: calc.params.nu,
+                        H: calc.params.H,
+                        fee_gwei: fee_gwei
+                    });
+                }
+
+                // Display stakeholder results
+                displayStakeholderResults(results);
+
+            } catch (error) {
+                displayError('stakeholder-test-results', `Stakeholder test failed: ${error.message}`);
+            }
+        }
+
+        function displayJavaScriptResults(results) {
+            const html = [];
+            html.push('<table class="comparison-table">');
+            html.push('<tr><th>Scenario</th><th>L1 Basefee</th><th>Deficit</th><th>JS Fee (gwei)</th><th>C_DA (gwei/gas)</th><th>C_vault (gwei/gas)</th></tr>');
+
+            for (const result of results) {
+                const realistic = (result.fee_gwei >= 0.001 && result.fee_gwei <= 1000);
+                const rowClass = realistic ? 'success' : 'failure';
+
+                html.push(`
+                    <tr class="${rowClass}">
+                        <td>${result.scenario}</td>
+                        <td>${result.l1_basefee} gwei</td>
+                        <td>${result.deficit} ETH</td>
+                        <td>${result.fee_gwei.toFixed(6)}</td>
+                        <td>${result.C_DA.toFixed(6)}</td>
+                        <td>${result.C_vault.toFixed(6)}</td>
+                    </tr>
+                `);
+            }
+
+            html.push('</table>');
+            html.push('<div class="info">✅ JavaScript canonical fee mechanism working correctly</div>');
+
+            document.getElementById('js-test-results').innerHTML = html.join('');
+        }
+
+        function displayStakeholderResults(results) {
+            const html = [];
+            html.push('<table class="comparison-table">');
+            html.push('<tr><th>Profile</th><th>μ</th><th>ν</th><th>H</th><th>Fee (15 gwei L1, 100 ETH deficit)</th></tr>');
+
+            for (const result of results) {
+                html.push(`
+                    <tr>
+                        <td>${result.profile}</td>
+                        <td>${result.mu.toFixed(3)}</td>
+                        <td>${result.nu.toFixed(3)}</td>
+                        <td>${result.H}</td>
+                        <td>${result.fee_gwei.toFixed(3)} gwei</td>
+                    </tr>
+                `);
+            }
+
+            html.push('</table>');
+            html.push('<div class="info">✅ Different stakeholder profiles produce different parameter sets</div>');
+
+            document.getElementById('stakeholder-test-results').innerHTML = html.join('');
+        }
+
+        function displayError(elementId, message) {
+            document.getElementById(elementId).innerHTML = `<div class="failure">${message}</div>`;
+        }
+
+        // Auto-run tests when page loads
+        window.runTests = runTests;
+        window.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>

@@ -54,8 +54,9 @@ class OptimizationStrategy(Enum):
 
 @dataclass
 class OptimizationBounds:
-    """Parameter bounds for optimization search space."""
+    """Parameter bounds for optimization search space (supports simplified and full parameter vectors)."""
 
+    # Core mechanism parameters (always optimized)
     mu_min: float = 0.0
     mu_max: float = 1.0
     nu_min: float = 0.0
@@ -63,30 +64,65 @@ class OptimizationBounds:
     H_min: int = 24          # ~1 minute (24 * 2s steps)
     H_max: int = 1800        # ~1 hour (1800 * 2s steps)
 
+    # Fixed parameters (not optimized)
+    fixed_lambda_B: float = 0.365       # Fixed L1 basefee smoothing (from 2024 optimization)
+
+    # Additional parameters (optimized in full mode, fixed in simplified mode)
+    alpha_data_min: float = 10000.0    # Conservative DA gas ratio
+    alpha_data_max: float = 50000.0     # Aggressive DA gas ratio
+    Q_bar_min: float = 400000.0         # Low average gas per batch
+    Q_bar_max: float = 1000000.0        # High average gas per batch
+    T_min: float = 500.0                # Small target balance
+    T_max: float = 2000.0               # Large target balance
+
+    # Configuration
+    simplified_mode: bool = True        # Use simplified θ=(μ,ν,H) parameter vector (λ_B fixed)
+    simplified_alpha_data: float = 20000.0   # Fixed α_data in simplified mode
+    simplified_Q_bar: float = 690000.0       # Fixed Q̄ in simplified mode
+    simplified_T: float = 1000.0             # Fixed T in simplified mode
+
     # Constraint: H must be multiple of batch_interval for resonance
     batch_interval: int = 6  # Enforce 6-step alignment
 
 
 @dataclass
 class Individual:
-    """Individual solution in the optimization population."""
+    """Individual solution in the optimization population (supports both full and simplified parameter vectors)."""
 
-    # Parameters (search variables)
+    # Core parameters (search variables)
     mu: float
     nu: float
     H: int
 
+    # Fixed parameters (not search variables)
+    lambda_B: float = 0.365     # Fixed L1 basefee smoothing
+
+    # Additional parameters (search variables in full mode, constants in simplified mode)
+    alpha_data: float = 20000.0     # Fixed constant in simplified mode
+    Q_bar: float = 690000.0         # Fixed constant in simplified mode
+    T: float = 1000.0               # Fixed constant in simplified mode
+
     # Objectives (to be minimized - negative of actual objectives for maximization)
     objectives: Optional[List[float]] = None
 
+    # Hard constraint violations
+    crr_violation: float = 0.0         # Cost recovery ratio constraint
+    ruin_probability: float = 0.0      # Ruin probability constraint
+
     # Optimization metadata
-    rank: int = -1                    # Pareto dominance rank
-    crowding_distance: float = 0.0    # Diversity measure
-    constraint_violation: float = 0.0 # Constraint penalty
+    rank: int = -1                     # Pareto dominance rank
+    crowding_distance: float = 0.0     # Diversity measure
+    constraint_violation: float = 0.0  # Total constraint penalty
 
     # Evaluation metadata
     simulation_time: float = 0.0
     evaluation_id: Optional[str] = None
+
+    def is_feasible(self, crr_tolerance: float = 0.05, max_ruin_prob: float = 0.01) -> bool:
+        """Check if individual satisfies hard constraints."""
+        crr_ok = abs(self.crr_violation) <= crr_tolerance
+        ruin_ok = self.ruin_probability <= max_ruin_prob
+        return crr_ok and ruin_ok
 
 
 @dataclass
@@ -189,6 +225,77 @@ class ObjectiveWeights:
             return cls()  # All weights = 1.0
 
 
+@dataclass
+class HardConstraints:
+    """Hard constraints for optimization (new specification)."""
+
+    # Cost recovery ratio bounds
+    crr_min: float = 0.95  # Minimum cost recovery ratio (95%)
+    crr_max: float = 1.05  # Maximum cost recovery ratio (105%)
+
+    # Ruin probability constraint
+    max_ruin_probability: float = 0.01  # Maximum 1% ruin probability
+    ruin_horizon_batches: int = 26280   # 1 year at ~20 minutes per batch
+
+    # Extreme fee bound (UX sanity)
+    max_p99_fee_gwei: float = 500.0     # Maximum 99th percentile fee
+
+    # Optional fairness constraints
+    enable_fairness_check: bool = False
+    fairness_tolerance: float = 0.5     # ±50% markup variation
+    fairness_cohort_size: int = 720     # Monthly cohorts (~720 batches/month)
+
+
+@dataclass
+class OptimizationMetrics:
+    """Comprehensive metrics from optimization evaluation (new specification)."""
+
+    # UX metrics
+    average_fee_gwei: float = 0.0
+    fee_cv: float = 0.0                 # Coefficient of variation
+    fee_p95_jump: float = 0.0           # 95th percentile relative jump
+    fee_cv_1h: float = 0.0              # 1-hour rolling CV
+    fee_cv_6h: float = 0.0              # 6-hour rolling CV
+
+    # Safety metrics
+    deficit_weighted_duration: float = 0.0  # Severity of underfunding
+    max_deficit_depth: float = 0.0      # Maximum deficit reached
+    recovery_time_after_shock: float = 0.0  # Recovery speed
+
+    # Efficiency metrics
+    average_vault_balance: float = 0.0
+    capital_per_throughput: float = 0.0
+
+    # Hard constraint violations
+    cost_recovery_ratio: float = 1.0
+    ruin_probability: float = 0.0
+    p99_fee_gwei: float = 0.0
+    fairness_violations: int = 0
+
+    def calculate_ux_objective(self, weights: ObjectiveWeights) -> float:
+        """Calculate weighted UX objective."""
+        return (
+            weights.fee_affordability * self.average_fee_gwei +
+            weights.fee_stability * self.fee_cv +
+            weights.fee_predictability_1h * self.fee_cv_1h +
+            weights.fee_predictability_6h * self.fee_cv_6h
+        )
+
+    def calculate_safety_objective(self, weights: ObjectiveWeights) -> float:
+        """Calculate weighted safety objective."""
+        return (
+            weights.deficit_duration * self.deficit_weighted_duration +
+            weights.vault_stress * self.max_deficit_depth
+        )
+
+    def calculate_efficiency_objective(self, weights: ObjectiveWeights) -> float:
+        """Calculate weighted efficiency objective."""
+        return (
+            weights.capital_efficiency * self.capital_per_throughput +
+            weights.vault_utilization * abs(self.average_vault_balance)
+        )
+
+
 class CanonicalOptimizer:
     """
     SINGLE SOURCE OF TRUTH for Taiko fee mechanism optimization.
@@ -197,9 +304,12 @@ class CanonicalOptimizer:
     objectives and constraints for different deployment scenarios.
     """
 
-    def __init__(self, bounds: Optional[OptimizationBounds] = None):
-        """Initialize optimizer with parameter bounds."""
+    def __init__(self,
+                 bounds: Optional[OptimizationBounds] = None,
+                 constraints: Optional[HardConstraints] = None):
+        """Initialize optimizer with parameter bounds and constraints (new specification)."""
         self.bounds = bounds or OptimizationBounds()
+        self.constraints = constraints or HardConstraints()
 
         # Simulation configuration
         self.simulation_steps = 1800  # 1 hour at 2s per step
@@ -220,9 +330,11 @@ class CanonicalOptimizer:
                 generations: int = 50,
                 l1_data: Optional[List[float]] = None,
                 vault_init: VaultInitMode = VaultInitMode.TARGET,
-                progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
+                progress_callback: Optional[Callable] = None,
+                enable_constraints: bool = True,
+                scenario_data: Optional[List[List[float]]] = None) -> Dict[str, Any]:
         """
-        Run NSGA-II optimization for specified strategy.
+        Run constraint-aware NSGA-II optimization for specified strategy.
 
         Args:
             strategy: Optimization strategy defining objective priorities
@@ -231,12 +343,33 @@ class CanonicalOptimizer:
             l1_data: Historical L1 basefee data (wei) for simulation
             vault_init: Vault initialization mode
             progress_callback: Optional callback for progress updates
+            enable_constraints: Enable hard constraint evaluation (CRR, ruin probability)
+            scenario_data: List of L1 basefee scenarios for constraint evaluation
 
         Returns:
-            Dictionary containing optimization results and analysis
+            Dictionary containing optimization results with constraint satisfaction analysis
         """
 
         start_time = time.time()
+
+        # Load scenario data for constraint evaluation
+        evaluation_scenarios = None
+        if enable_constraints:
+            if scenario_data is not None:
+                evaluation_scenarios = scenario_data
+            else:
+                # Auto-load scenarios from canonical_scenarios module
+                try:
+                    from .canonical_scenarios import get_scenario_list_for_optimization
+                    evaluation_scenarios = get_scenario_list_for_optimization()
+                    print(f"Loaded {len(evaluation_scenarios)} scenarios for constraint evaluation")
+                except ImportError:
+                    warnings.warn("canonical_scenarios module not available - constraints disabled")
+                    enable_constraints = False
+
+        # Store constraint configuration
+        self.enable_constraints = enable_constraints
+        self.evaluation_scenarios = evaluation_scenarios
 
         # Initialize population
         population = self._initialize_population(population_size)
@@ -283,13 +416,15 @@ class CanonicalOptimizer:
         }
 
     def _initialize_population(self, size: int) -> List[Individual]:
-        """Initialize random population within bounds."""
+        """Initialize random population within bounds (supports simplified and full parameter vectors)."""
         population = []
 
         for _ in range(size):
-            # Random parameters within bounds
+            # Core mechanism parameters (optimized)
             mu = np.random.uniform(self.bounds.mu_min, self.bounds.mu_max)
             nu = np.random.uniform(self.bounds.nu_min, self.bounds.nu_max)
+            # λ_B is now fixed, not optimized
+            lambda_B = self.bounds.fixed_lambda_B
 
             # H with batch interval alignment
             h_range = self.bounds.H_max - self.bounds.H_min
@@ -297,7 +432,22 @@ class CanonicalOptimizer:
             h_multiplier = np.random.randint(0, h_steps + 1)
             H = self.bounds.H_min + h_multiplier * self.bounds.batch_interval
 
-            individual = Individual(mu=mu, nu=nu, H=H)
+            # Additional parameters (optimized in full mode, fixed in simplified mode)
+            if self.bounds.simplified_mode:
+                # Simplified mode: θ=(μ,ν,H,λ_B) with fixed constants
+                alpha_data = self.bounds.simplified_alpha_data
+                Q_bar = self.bounds.simplified_Q_bar
+                T = self.bounds.simplified_T
+            else:
+                # Full mode: θ=(μ,ν,H,α_data,λ_B,Q̄,T) all optimized
+                alpha_data = np.random.uniform(self.bounds.alpha_data_min, self.bounds.alpha_data_max)
+                Q_bar = np.random.uniform(self.bounds.Q_bar_min, self.bounds.Q_bar_max)
+                T = np.random.uniform(self.bounds.T_min, self.bounds.T_max)
+
+            individual = Individual(
+                mu=mu, nu=nu, H=H, lambda_B=lambda_B,
+                alpha_data=alpha_data, Q_bar=Q_bar, T=T
+            )
             population.append(individual)
 
         return population
@@ -324,11 +474,15 @@ class CanonicalOptimizer:
         start_time = time.time()
 
         try:
-            # Create fee calculator with individual's parameters
+            # Create fee calculator with individual's parameters (new specification)
             params = FeeParameters(
                 mu=individual.mu,
                 nu=individual.nu,
-                H=individual.H
+                H=individual.H,
+                alpha_data=individual.alpha_data,
+                lambda_B=individual.lambda_B,
+                Q_bar=individual.Q_bar,
+                T=individual.T
             )
             calculator = CanonicalTaikoFeeCalculator(params)
 
@@ -343,7 +497,10 @@ class CanonicalOptimizer:
             individual.objectives = objectives
 
             # Calculate constraint violations
-            individual.constraint_violation = self._calculate_constraint_violation(individual)
+            if hasattr(self, 'enable_constraints') and self.enable_constraints and self.evaluation_scenarios:
+                individual.constraint_violation = self._calculate_constraint_violation(individual, self.evaluation_scenarios)
+            else:
+                individual.constraint_violation = self._calculate_constraint_violation(individual)
 
         except Exception as e:
             # Handle evaluation failures gracefully
@@ -610,8 +767,248 @@ class CanonicalOptimizer:
         capital_efficiency = net_revenue / avg_capital
         return max(0.0, min(1.0, capital_efficiency))
 
-    def _calculate_constraint_violation(self, individual: Individual) -> float:
-        """Calculate constraint violation penalty."""
+    def calculate_cost_recovery_ratio(self,
+                                     individual: Individual,
+                                     scenario_data: List[float]) -> float:
+        """
+        Calculate Cost Recovery Ratio (CRR) for constraint evaluation.
+
+        Args:
+            individual: Individual with parameter set θ
+            scenario_data: L1 basefee data in wei for scenario replay
+
+        Returns:
+            CRR(θ) = R(θ) / C_L1 where R(θ) is total L2 revenue and C_L1 is total L1 DA cost
+
+        Formula:
+            R(θ) = Σ F_L2(t;θ) × Q(t)  [total L2 revenue]
+            C_L1 = Σ C_L1(t)           [total L1 DA cost]
+            CRR(θ) = R(θ) / C_L1
+        """
+        if len(scenario_data) == 0:
+            warnings.warn("Empty scenario data for CRR calculation")
+            return 1.0
+
+        # Create fee calculator with individual's parameters
+        params = FeeParameters(
+            mu=individual.mu,
+            nu=individual.nu,
+            H=individual.H,
+            alpha_data=individual.alpha_data,
+            lambda_B=individual.lambda_B,
+            Q_bar=individual.Q_bar,
+            T=individual.T
+        )
+        calculator = CanonicalTaikoFeeCalculator(params)
+
+        # Create vault in target state for CRR calculation
+        vault = calculator.create_vault(VaultInitMode.TARGET)
+
+        # Run scenario replay to calculate revenues and costs
+        total_l2_revenue = 0.0
+        total_l1_cost = 0.0
+
+        # Limit scenario length for computational efficiency
+        scenario_length = min(len(scenario_data), self.simulation_steps)
+
+        for step in range(scenario_length):
+            l1_basefee_wei = scenario_data[step]
+
+            # Calculate estimated fee using new specification
+            estimated_fee_per_gas = calculator.calculate_estimated_fee_raw(l1_basefee_wei, vault.deficit)
+
+            # Ensure minimum fee for transaction volume calculation
+            fee_for_volume = max(estimated_fee_per_gas * params.gas_per_tx, 1e-9)  # 1 nanoETH minimum
+            tx_volume = calculator.calculate_transaction_volume(fee_for_volume)
+
+            # Calculate L2 revenue: F_L2(t) × Q(t)
+            l2_gas_consumed = tx_volume * params.gas_per_tx
+            l2_revenue_step = estimated_fee_per_gas * l2_gas_consumed
+            total_l2_revenue += l2_revenue_step
+
+            # Collect fees (every step)
+            vault.collect_fees(l2_revenue_step)
+
+            # Calculate and pay L1 costs (every batch_interval steps)
+            if step % params.batch_interval_steps == 0:
+                l1_cost_step = calculator.calculate_l1_batch_cost(l1_basefee_wei)
+                total_l1_cost += l1_cost_step
+                vault.pay_l1_costs(l1_cost_step)
+
+        # Calculate CRR
+        if total_l1_cost == 0:
+            warnings.warn("Zero L1 costs in CRR calculation - scenario may be invalid")
+            return float('inf') if total_l2_revenue > 0 else 1.0
+
+        crr = total_l2_revenue / total_l1_cost
+        return crr
+
+    def evaluate_crr_constraint(self, crr_value: float, epsilon_crr: float = 0.05) -> Tuple[bool, float]:
+        """
+        Evaluate Cost Recovery Ratio constraint.
+
+        Args:
+            crr_value: Calculated CRR value
+            epsilon_crr: Tolerance around perfect cost recovery (default 5%)
+
+        Returns:
+            Tuple of (constraint_satisfied, violation_amount)
+
+        Constraint:
+            1-ε_CRR ≤ CRR(θ) ≤ 1+ε_CRR
+        """
+        crr_min = 1.0 - epsilon_crr
+        crr_max = 1.0 + epsilon_crr
+
+        if crr_min <= crr_value <= crr_max:
+            return True, 0.0
+        elif crr_value < crr_min:
+            violation = crr_min - crr_value
+            return False, violation
+        else:  # crr_value > crr_max
+            violation = crr_value - crr_max
+            return False, violation
+
+    def simulate_vault_trajectory(self,
+                                 individual: Individual,
+                                 scenario_data: List[float]) -> List[float]:
+        """
+        Simulate vault balance trajectory for ruin probability analysis.
+
+        Args:
+            individual: Individual with parameter set θ
+            scenario_data: L1 basefee data in wei for scenario replay
+
+        Returns:
+            List of vault balances throughout the simulation
+        """
+        if len(scenario_data) == 0:
+            warnings.warn("Empty scenario data for vault trajectory simulation")
+            return [individual.T]  # Return single target balance
+
+        # Create fee calculator with individual's parameters
+        params = FeeParameters(
+            mu=individual.mu,
+            nu=individual.nu,
+            H=individual.H,
+            alpha_data=individual.alpha_data,
+            lambda_B=individual.lambda_B,
+            Q_bar=individual.Q_bar,
+            T=individual.T
+        )
+        calculator = CanonicalTaikoFeeCalculator(params)
+
+        # Create vault in target state initially
+        vault = calculator.create_vault(VaultInitMode.TARGET)
+
+        # Track vault balance trajectory
+        vault_trajectory = [vault.balance]
+
+        # Limit scenario length for computational efficiency
+        scenario_length = min(len(scenario_data), self.simulation_steps)
+
+        for step in range(scenario_length):
+            l1_basefee_wei = scenario_data[step]
+
+            # Calculate estimated fee using new specification
+            estimated_fee_per_gas = calculator.calculate_estimated_fee_raw(l1_basefee_wei, vault.deficit)
+
+            # Ensure minimum fee for transaction volume calculation
+            fee_for_volume = max(estimated_fee_per_gas * params.gas_per_tx, 1e-9)  # 1 nanoETH minimum
+            tx_volume = calculator.calculate_transaction_volume(fee_for_volume)
+
+            # Collect fees (every step)
+            l2_gas_consumed = tx_volume * params.gas_per_tx
+            fees_collected = estimated_fee_per_gas * l2_gas_consumed
+            vault.collect_fees(fees_collected)
+
+            # Pay L1 costs (every batch_interval steps)
+            if step % params.batch_interval_steps == 0:
+                l1_cost = calculator.calculate_l1_batch_cost(l1_basefee_wei)
+                vault.pay_l1_costs(l1_cost)
+
+            vault_trajectory.append(vault.balance)
+
+        return vault_trajectory
+
+    def calculate_ruin_probability(self,
+                                  individual: Individual,
+                                  scenarios: List[List[float]],
+                                  v_crit_ratio: float = 0.1) -> float:
+        """
+        Calculate ruin probability across multiple scenarios.
+
+        Args:
+            individual: Individual with parameter set θ
+            scenarios: List of L1 basefee scenario data (each is List[float] in wei)
+            v_crit_ratio: Critical vault balance as ratio of target (default 10%)
+
+        Returns:
+            ρ_ruin(θ) = Pr[∃t: V(t;θ) < V_crit] across scenarios
+
+        Formula:
+            V_crit = v_crit_ratio × T
+            Ruin event: V(t;θ) < V_crit at any point in scenario
+            ρ_ruin(θ) = (number of scenarios with ruin) / (total scenarios)
+        """
+        if len(scenarios) == 0:
+            warnings.warn("No scenarios provided for ruin probability calculation")
+            return 0.0
+
+        v_crit = v_crit_ratio * individual.T
+        ruin_count = 0
+
+        for scenario_data in scenarios:
+            if len(scenario_data) == 0:
+                continue
+
+            # Simulate vault trajectory for this scenario
+            vault_trajectory = self.simulate_vault_trajectory(individual, scenario_data)
+
+            # Check if any point in trajectory falls below critical threshold
+            min_balance = min(vault_trajectory)
+            if min_balance < v_crit:
+                ruin_count += 1
+
+        # Calculate ruin probability
+        ruin_probability = ruin_count / len(scenarios)
+        return ruin_probability
+
+    def evaluate_ruin_constraint(self,
+                                ruin_prob: float,
+                                epsilon_ruin: float = 0.01) -> Tuple[bool, float]:
+        """
+        Evaluate ruin probability constraint.
+
+        Args:
+            ruin_prob: Calculated ruin probability
+            epsilon_ruin: Maximum acceptable ruin probability (default 1%)
+
+        Returns:
+            Tuple of (constraint_satisfied, violation_amount)
+
+        Constraint:
+            ρ_ruin(θ) ≤ ε_ruin
+        """
+        if ruin_prob <= epsilon_ruin:
+            return True, 0.0
+        else:
+            violation = ruin_prob - epsilon_ruin
+            return False, violation
+
+    def _calculate_constraint_violation(self,
+                                      individual: Individual,
+                                      scenarios: Optional[List[List[float]]] = None) -> float:
+        """
+        Calculate comprehensive constraint violation penalty including hard constraints.
+
+        Args:
+            individual: Individual to evaluate
+            scenarios: Optional scenario data for CRR and ruin probability evaluation
+
+        Returns:
+            Total constraint violation (0.0 = feasible, >0.0 = violation)
+        """
         violation = 0.0
 
         # Parameter bounds (should be enforced during generation)
@@ -625,6 +1022,35 @@ class CanonicalOptimizer:
         # Batch interval alignment
         if individual.H % self.bounds.batch_interval != 0:
             violation += 1.0
+
+        # Hard constraints (only if scenario data is provided)
+        if scenarios is not None and len(scenarios) > 0:
+            try:
+                # Use first scenario for CRR calculation (representative scenario)
+                primary_scenario = scenarios[0]
+                if len(primary_scenario) > 0:
+                    # CRR constraint evaluation
+                    crr = self.calculate_cost_recovery_ratio(individual, primary_scenario)
+                    crr_satisfied, crr_violation = self.evaluate_crr_constraint(
+                        crr, self.constraints.crr_max - 1.0  # Use epsilon from constraints
+                    )
+                    individual.crr_violation = crr_violation
+                    violation += crr_violation
+
+                    # Ruin probability constraint evaluation
+                    ruin_prob = self.calculate_ruin_probability(individual, scenarios)
+                    ruin_satisfied, ruin_violation = self.evaluate_ruin_constraint(
+                        ruin_prob, self.constraints.max_ruin_probability
+                    )
+                    individual.ruin_probability = ruin_prob
+                    violation += ruin_violation * 10.0  # Weight ruin constraint heavily
+
+            except Exception as e:
+                warnings.warn(f"Hard constraint evaluation failed: {e}")
+                # Assign high violation for failed evaluations
+                violation += 10.0
+                individual.crr_violation = 10.0
+                individual.ruin_probability = 1.0
 
         return violation
 
@@ -641,7 +1067,10 @@ class CanonicalOptimizer:
             if np.random.random() < self.crossover_rate:
                 child = self._crossover(parent1, parent2)
             else:
-                child = Individual(mu=parent1.mu, nu=parent1.nu, H=parent1.H)
+                child = Individual(
+                    mu=parent1.mu, nu=parent1.nu, H=parent1.H, lambda_B=parent1.lambda_B,
+                    alpha_data=parent1.alpha_data, Q_bar=parent1.Q_bar, T=parent1.T
+                )
 
             # Mutation
             child = self._mutate(child)
@@ -664,9 +1093,10 @@ class CanonicalOptimizer:
         return best
 
     def _crossover(self, parent1: Individual, parent2: Individual) -> Individual:
-        """Simulated binary crossover for real parameters."""
+        """Simulated binary crossover for real parameters (supports simplified and full parameter vectors)."""
         eta_c = 20.0  # Crossover distribution index
 
+        # Core parameters (always optimized)
         # Crossover for mu
         if np.random.random() < 0.5:
             beta = self._calculate_crossover_beta(eta_c)
@@ -681,18 +1111,59 @@ class CanonicalOptimizer:
         else:
             nu = parent1.nu
 
+        # λ_B is fixed, not crossed over
+        lambda_B = self.bounds.fixed_lambda_B
+
         # Discrete crossover for H
         H = parent1.H if np.random.random() < 0.5 else parent2.H
 
-        # Ensure bounds
+        # Additional parameters (crossover in full mode, keep fixed in simplified mode)
+        if self.bounds.simplified_mode:
+            # Simplified mode: use fixed constants
+            alpha_data = self.bounds.simplified_alpha_data
+            Q_bar = self.bounds.simplified_Q_bar
+            T = self.bounds.simplified_T
+        else:
+            # Full mode: crossover all parameters
+            # Crossover for alpha_data
+            if np.random.random() < 0.5:
+                beta = self._calculate_crossover_beta(eta_c)
+                alpha_data = 0.5 * ((1 + beta) * parent1.alpha_data + (1 - beta) * parent2.alpha_data)
+            else:
+                alpha_data = parent1.alpha_data
+
+            # Crossover for Q_bar
+            if np.random.random() < 0.5:
+                beta = self._calculate_crossover_beta(eta_c)
+                Q_bar = 0.5 * ((1 + beta) * parent1.Q_bar + (1 - beta) * parent2.Q_bar)
+            else:
+                Q_bar = parent1.Q_bar
+
+            # Crossover for T
+            if np.random.random() < 0.5:
+                beta = self._calculate_crossover_beta(eta_c)
+                T = 0.5 * ((1 + beta) * parent1.T + (1 - beta) * parent2.T)
+            else:
+                T = parent1.T
+
+        # Ensure bounds for core parameters
         mu = np.clip(mu, self.bounds.mu_min, self.bounds.mu_max)
         nu = np.clip(nu, self.bounds.nu_min, self.bounds.nu_max)
+        # λ_B is fixed, not bounded
+        lambda_B = self.bounds.fixed_lambda_B
         H = np.clip(H, self.bounds.H_min, self.bounds.H_max)
+
+        # Ensure bounds for additional parameters in full mode
+        if not self.bounds.simplified_mode:
+            alpha_data = np.clip(alpha_data, self.bounds.alpha_data_min, self.bounds.alpha_data_max)
+            Q_bar = np.clip(Q_bar, self.bounds.Q_bar_min, self.bounds.Q_bar_max)
+            T = np.clip(T, self.bounds.T_min, self.bounds.T_max)
 
         # Ensure H alignment
         H = self._align_to_batch_interval(H)
 
-        return Individual(mu=mu, nu=nu, H=H)
+        return Individual(mu=mu, nu=nu, H=H, lambda_B=lambda_B,
+                         alpha_data=alpha_data, Q_bar=Q_bar, T=T)
 
     def _calculate_crossover_beta(self, eta_c: float) -> float:
         """Calculate beta parameter for simulated binary crossover."""
@@ -704,9 +1175,10 @@ class CanonicalOptimizer:
         return beta
 
     def _mutate(self, individual: Individual) -> Individual:
-        """Polynomial mutation for real parameters."""
+        """Polynomial mutation for real parameters (supports simplified and full parameter vectors)."""
         eta_m = 50.0  # Mutation distribution index
 
+        # Core parameters (always mutated)
         # Mutate mu
         if np.random.random() < self.mutation_rate:
             mu = self._polynomial_mutation(individual.mu, self.bounds.mu_min, self.bounds.mu_max, eta_m)
@@ -719,6 +1191,9 @@ class CanonicalOptimizer:
         else:
             nu = individual.nu
 
+        # λ_B is fixed, not mutated
+        lambda_B = self.bounds.fixed_lambda_B
+
         # Mutate H (discrete)
         if np.random.random() < self.mutation_rate:
             h_steps = (self.bounds.H_max - self.bounds.H_min) // self.bounds.batch_interval
@@ -729,7 +1204,34 @@ class CanonicalOptimizer:
         else:
             H = individual.H
 
-        return Individual(mu=mu, nu=nu, H=H)
+        # Additional parameters (mutated in full mode, keep fixed in simplified mode)
+        if self.bounds.simplified_mode:
+            # Simplified mode: use fixed constants
+            alpha_data = self.bounds.simplified_alpha_data
+            Q_bar = self.bounds.simplified_Q_bar
+            T = self.bounds.simplified_T
+        else:
+            # Full mode: mutate all parameters
+            # Mutate alpha_data
+            if np.random.random() < self.mutation_rate:
+                alpha_data = self._polynomial_mutation(individual.alpha_data, self.bounds.alpha_data_min, self.bounds.alpha_data_max, eta_m)
+            else:
+                alpha_data = individual.alpha_data
+
+            # Mutate Q_bar
+            if np.random.random() < self.mutation_rate:
+                Q_bar = self._polynomial_mutation(individual.Q_bar, self.bounds.Q_bar_min, self.bounds.Q_bar_max, eta_m)
+            else:
+                Q_bar = individual.Q_bar
+
+            # Mutate T
+            if np.random.random() < self.mutation_rate:
+                T = self._polynomial_mutation(individual.T, self.bounds.T_min, self.bounds.T_max, eta_m)
+            else:
+                T = individual.T
+
+        return Individual(mu=mu, nu=nu, H=H, lambda_B=lambda_B,
+                         alpha_data=alpha_data, Q_bar=Q_bar, T=T)
 
     def _polynomial_mutation(self, value: float, lower: float, upper: float, eta_m: float) -> float:
         """Polynomial mutation for bounded real parameters."""
@@ -817,7 +1319,7 @@ class CanonicalOptimizer:
 
         # Create subsequent fronts
         current_front = 0
-        while len(fronts[current_front]) > 0:
+        while current_front < len(fronts) and len(fronts[current_front]) > 0:
             next_front = []
 
             for individual in fronts[current_front]:
@@ -970,6 +1472,91 @@ def optimize_for_strategy(strategy: OptimizationStrategy,
     )
 
 
+def optimize_simplified_parameters(strategy: OptimizationStrategy = OptimizationStrategy.BALANCED,
+                                  population_size: int = 100,
+                                  generations: int = 50,
+                                  alpha_data: float = 20000.0,
+                                  Q_bar: float = 690000.0,
+                                  T: float = 1000.0,
+                                  enable_constraints: bool = True) -> Dict[str, Any]:
+    """
+    Quick optimization using simplified parameter vector θ=(μ,ν,H,λ_B) with constraint-aware NSGA-II.
+
+    Args:
+        strategy: Optimization strategy to use
+        population_size: Population size for NSGA-II
+        generations: Number of generations
+        alpha_data: Fixed α_data constant (DA gas ratio)
+        Q_bar: Fixed Q̄ constant (average gas per batch)
+        T: Fixed T constant (target vault balance)
+        enable_constraints: Enable hard constraint evaluation (CRR, ruin probability)
+
+    Returns:
+        Optimization results with Pareto frontier and constraint satisfaction
+    """
+    # Create bounds for simplified mode
+    bounds = OptimizationBounds(
+        simplified_mode=True,
+        simplified_alpha_data=alpha_data,
+        simplified_Q_bar=Q_bar,
+        simplified_T=T
+    )
+
+    # Create optimizer with simplified bounds
+    optimizer = CanonicalOptimizer(bounds=bounds)
+
+    return optimizer.optimize(
+        strategy=strategy,
+        population_size=population_size,
+        generations=generations,
+        enable_constraints=enable_constraints
+    )
+
+
+def optimize_with_constraints(strategy: OptimizationStrategy = OptimizationStrategy.BALANCED,
+                             population_size: int = 100,
+                             generations: int = 50,
+                             scenario_data: Optional[List[List[float]]] = None,
+                             simplified_mode: bool = True,
+                             crr_tolerance: float = 0.05,
+                             max_ruin_probability: float = 0.01) -> Dict[str, Any]:
+    """
+    Constraint-aware optimization with formal CRR and ruin probability constraints.
+
+    Args:
+        strategy: Optimization strategy to use
+        population_size: Population size for NSGA-II
+        generations: Number of generations
+        scenario_data: Custom scenario data (auto-loaded if None)
+        simplified_mode: Use simplified θ=(μ,ν,H,λ_B) parameter vector
+        crr_tolerance: Cost recovery ratio tolerance (±5% default)
+        max_ruin_probability: Maximum acceptable ruin probability (1% default)
+
+    Returns:
+        Optimization results with comprehensive constraint analysis
+    """
+    # Configure bounds based on mode
+    if simplified_mode:
+        bounds = OptimizationBounds(simplified_mode=True)
+    else:
+        bounds = OptimizationBounds(simplified_mode=False)
+
+    # Create optimizer with constraint configuration
+    optimizer = CanonicalOptimizer(bounds=bounds)
+
+    # Set constraint thresholds
+    optimizer.constraints.crr_max = 1.0 + crr_tolerance
+    optimizer.constraints.max_ruin_probability = max_ruin_probability
+
+    return optimizer.optimize(
+        strategy=strategy,
+        population_size=population_size,
+        generations=generations,
+        enable_constraints=True,
+        scenario_data=scenario_data
+    )
+
+
 def find_pareto_optimal_parameters(l1_data: Optional[List[float]] = None) -> List[Individual]:
     """Find Pareto optimal parameters using balanced strategy."""
     results = optimize_for_strategy(OptimizationStrategy.BALANCED)
@@ -980,7 +1567,7 @@ def validate_parameter_set(mu: float, nu: float, H: int,
                           l1_data: Optional[List[float]] = None) -> Dict[str, float]:
     """Validate specific parameter set and return objective scores."""
     optimizer = CanonicalOptimizer()
-    individual = Individual(mu=mu, nu=nu, H=H)
+    individual = Individual(mu=mu, nu=nu, H=H, lambda_B=optimizer.bounds.fixed_lambda_B)
     weights = ObjectiveWeights.for_strategy(OptimizationStrategy.BALANCED)
 
     evaluated = optimizer._evaluate_individual(individual, weights, l1_data, VaultInitMode.TARGET)

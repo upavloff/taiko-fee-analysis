@@ -64,8 +64,10 @@ class TaikoFeeExplorer {
             this.markParametersModified();
         });
 
-        document.getElementById('tx-per-block-slider').addEventListener('input', (e) => {
-            document.getElementById('tx-per-block-value').textContent = e.target.value;
+        document.getElementById('Q-bar-slider').addEventListener('input', (e) => {
+            // Format Q̄ value with comma separation
+            const value = parseInt(e.target.value);
+            document.getElementById('Q-bar-value').textContent = value.toLocaleString();
             this.clearActivePreset();
             this.markParametersModified();
         });
@@ -254,11 +256,8 @@ class TaikoFeeExplorer {
     }
 
     updateInfoBox() {
-        const params = this.getCurrentParameters();
-
-        document.getElementById('info-mu').textContent = params.mu;
-        document.getElementById('info-nu').textContent = params.nu;
-        document.getElementById('info-h').textContent = params.H;
+        // Info box now contains static conceptual explanation
+        // No dynamic parameter updates needed
     }
 
     switchTab(tabName) {
@@ -280,7 +279,7 @@ class TaikoFeeExplorer {
         document.getElementById('nu-value').textContent = document.getElementById('nu-slider').value;
         document.getElementById('H-value').textContent = document.getElementById('H-slider').value;
         document.getElementById('volatility-value').textContent = document.getElementById('volatility-slider').value;
-        document.getElementById('tx-per-block-value').textContent = document.getElementById('tx-per-block-slider').value;
+        document.getElementById('Q-bar-value').textContent = parseInt(document.getElementById('Q-bar-slider').value).toLocaleString();
         document.getElementById('duration-value').textContent = parseFloat(document.getElementById('duration-slider').value).toFixed(1);
 
         // Update minimum deficit rate display
@@ -313,7 +312,7 @@ class TaikoFeeExplorer {
             historicalPeriod: historicalPeriod,
             seed: parseInt(document.getElementById('seed-input').value),
             vaultInit: document.getElementById('vault-init').value,
-            txsPerBatch: parseInt(document.getElementById('tx-per-block-slider').value),
+            Q_bar: parseInt(document.getElementById('Q-bar-slider').value),
             spikeDelay: parseInt(document.getElementById('spike-delay-slider').value),
             spikeHeight: parseFloat(document.getElementById('spike-height-slider').value),
             guaranteedRecovery: document.getElementById('guaranteed-recovery').checked,
@@ -321,7 +320,7 @@ class TaikoFeeExplorer {
             durationHours: parseFloat(document.getElementById('duration-slider').value),
             targetBalance: 100,
             feeElasticity: 0.2,
-            minFee: 1e-8
+            minFee: 1e-12  // 0.001 gwei realistic minimum
         };
 
         console.log(`App parameters:`, params);
@@ -401,7 +400,7 @@ class TaikoFeeExplorer {
             console.log('Simulation completed, data points:', simulationData.length);
 
             // Calculate metrics
-            const metricsCalculator = new MetricsCalculator(params.targetBalance, simulator.gasPerTx);
+            const metricsCalculator = new MetricsCalculator(params.targetBalance, params.Q_bar);
             const metrics = metricsCalculator.calculateMetrics(simulationData);
 
             console.log('Calculated metrics:', metrics);
@@ -411,7 +410,7 @@ class TaikoFeeExplorer {
 
             // Update UI
             this.updateMetricsDisplay(metrics);
-            this.updateCharts(simulationData, simulator.gasPerTx);
+            this.updateCharts(simulationData, params.Q_bar);
 
         } catch (error) {
             console.error('Simulation error:', error);
@@ -432,25 +431,25 @@ class TaikoFeeExplorer {
         this.chartManager.updateMetricCard('tracking-card', metrics.l1TrackingError, evaluations.l1Tracking);
     }
 
-    updateCharts(simulationData, gasPerTx) {
+    updateCharts(simulationData, Q_bar) {
         const params = this.getCurrentParameters();
 
-        // Debug: Log gasPerTx value for data quality tracking
-        console.log(`📊 Chart update: gasPerTx = ${gasPerTx} (type: ${typeof gasPerTx})`);
-        if (!gasPerTx || gasPerTx <= 0) {
-            console.error(`🚨 CRITICAL: Invalid gasPerTx passed to charts: ${gasPerTx}`);
-        } else if (gasPerTx < 1000 || gasPerTx > 50000) {
-            console.warn(`⚠️ Unexpected gasPerTx value: ${gasPerTx} (expected ~20,000)`);
+        // Debug: Log Q_bar value for canonical tracking
+        console.log(`📊 Chart update: Q̄ = ${Q_bar} (type: ${typeof Q_bar})`);
+        if (!Q_bar || Q_bar <= 0) {
+            console.error(`🚨 CRITICAL: Invalid Q̄ passed to charts: ${Q_bar}`);
+        } else if (Q_bar < 100000 || Q_bar > 2000000) {
+            console.warn(`⚠️ Unexpected Q̄ value: ${Q_bar} (expected ~690,000)`);
         } else {
-            console.log(`✅ gasPerTx value looks reasonable: ${gasPerTx}`);
+            console.log(`✅ Q̄ value looks reasonable: ${Q_bar}`);
         }
 
-        // Create/update all charts
-        this.chartManager.createFeeChart('fee-chart', simulationData, gasPerTx);
+        // Create/update all charts using canonical Q̄ parameter
+        this.chartManager.createFeeChart('fee-chart', simulationData, Q_bar);
         this.chartManager.createVaultChart('vault-chart', simulationData, params.targetBalance);
         this.chartManager.createL1Chart('l1-chart', simulationData);
-        this.chartManager.createCorrelationChart('correlation-chart', simulationData, gasPerTx);
-        this.chartManager.createL1EstimationChart('l1-estimation-chart', simulationData, gasPerTx);
+        this.chartManager.createCorrelationChart('correlation-chart', simulationData, Q_bar);
+        this.chartManager.createL1EstimationChart('l1-estimation-chart', simulationData, Q_bar);
     }
 
     showLoading(show) {

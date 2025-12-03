@@ -379,24 +379,24 @@ export async function validateParameterSet(mu, nu, H) {
 export function getStrategyParameters(strategy = OptimizationStrategy.BALANCED) {
     const strategies = {
         [OptimizationStrategy.BALANCED]: {
-            mu: 0.0, nu: 0.27, H: 492,
-            description: "Balanced approach optimizing all objectives equally"
+            mu: 0.0, nu: 0.369, H: 1794, lambda_B: 0.365,
+            description: "2024 NSGA-II optimized balanced approach"
         },
         [OptimizationStrategy.USER_FOCUSED]: {
-            mu: 0.0, nu: 0.15, H: 288,
-            description: "Prioritizes user experience with lower, more stable fees"
+            mu: 0.522, nu: 0.0, H: 1464, lambda_B: 0.365,
+            description: "User-centric optimization result prioritizing lower fees"
         },
         [OptimizationStrategy.PROTOCOL_SAFETY]: {
-            mu: 0.0, nu: 0.48, H: 492,
-            description: "Conservative approach prioritizing protocol safety"
+            mu: 0.133, nu: 0.022, H: 1752, lambda_B: 0.365,
+            description: "Protocol-centric optimization for maximum safety"
         },
         [OptimizationStrategy.CRISIS_RESILIENT]: {
-            mu: 0.0, nu: 0.88, H: 120,
+            mu: 0.0, nu: 0.88, H: 120, lambda_B: 0.365,
             description: "Aggressive deficit recovery for crisis situations"
         },
         [OptimizationStrategy.ECONOMIC_EFFICIENCY]: {
-            mu: 0.0, nu: 0.35, H: 360,
-            description: "Balanced cost recovery with economic efficiency focus"
+            mu: 0.0, nu: 0.35, H: 1794, lambda_B: 0.365,
+            description: "Economic efficiency focus with extended horizon"
         }
     };
 

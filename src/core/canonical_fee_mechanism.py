@@ -14,15 +14,18 @@ Key Features:
 - Fully documented mathematical formulations
 
 Formula Reference:
-    F_estimated(t) = max(μ × C_L1(t) + ν × D(t)/H, F_min)
+    F_L2_raw(t) = μ × C_DA(t) + ν × C_vault(t)
 
 Where:
-    - μ: L1 weight parameter [0.0, 1.0]
-    - ν: Deficit weight parameter [0.0, 1.0]
-    - H: Prediction horizon (time steps)
-    - C_L1(t): L1 cost per transaction at time t
-    - D(t): Vault deficit at time t
-    - F_min: Minimum fee floor (1e-8 ETH)
+    - μ: DA cost pass-through coefficient [0.0, 1.0]
+    - ν: Vault-healing intensity coefficient [0.0, 1.0]
+    - C_DA(t) = α_data × B̂_L1(t): smoothed marginal DA cost per L2 gas
+    - C_vault(t) = D(t)/(H × Q̄): full-strength vault-healing surcharge per L2 gas
+    - α_data: Expected L1 DA gas per 1 L2 gas
+    - B̂_L1(t): Smoothed L1 basefee (ETH per L1 gas)
+    - D(t): Vault deficit (ETH, positive when underfunded)
+    - H: Recovery horizon (batches)
+    - Q̄: Typical L2 gas per batch (governance constant)
 """
 
 import numpy as np
@@ -90,13 +93,19 @@ class VaultInitMode(Enum):
 class FeeParameters:
     """Canonical parameter set for fee mechanism configuration."""
 
-    # Core mechanism parameters
-    mu: float = 0.0                    # L1 weight [0.0, 1.0]
-    nu: float = 0.27                   # Deficit weight [0.0, 1.0]
-    H: int = 492                       # Prediction horizon (time steps)
+    # Core mechanism parameters (2024 NSGA-II optimized)
+    mu: float = 0.0                    # L1 weight [0.0, 1.0] - DA cost pass-through coefficient
+    nu: float = 0.369                  # Deficit weight [0.0, 1.0] - enhanced vault-healing intensity coefficient
+    H: int = 1794                      # Prediction horizon (time steps) - ~1 hour recovery horizon in batches
 
-    # Economic parameters
-    target_balance: float = 1000.0     # Target vault balance (ETH)
+    # New Fee Mechanism Parameters (per specification, 2024 optimized)
+    alpha_data: float = 0.5            # DA gas ratio: expected L1 DA gas per 1 L2 gas (FIXED: was 20000x too high)
+    lambda_B: float = 0.365            # EMA smoothing factor for L1 basefee [0.0, 1.0] - enhanced stability
+    Q_bar: float = 690000.0            # Average L2 gas per batch (governance constant)
+    T: float = 1000.0                  # Target vault balance (ETH)
+
+    # Economic parameters (legacy - kept for compatibility)
+    target_balance: float = 1000.0     # Legacy target vault balance (ETH) - use T instead
     min_fee: float = 1e-8              # Minimum fee floor (ETH)
 
     # L1 cost calculation
@@ -133,11 +142,28 @@ class FeeParameters:
         if self.H <= 0:
             errors.append(f"H must be positive, got {self.H}")
 
+        # New fee mechanism parameter bounds
+        if self.alpha_data <= 0:
+            errors.append(f"alpha_data must be positive, got {self.alpha_data}")
+        if not (0.0 < self.lambda_B <= 1.0):
+            errors.append(f"lambda_B must be in (0.0, 1.0], got {self.lambda_B}")
+        if self.Q_bar <= 0:
+            errors.append(f"Q_bar must be positive, got {self.Q_bar}")
+        if self.T <= 0:
+            errors.append(f"T must be positive, got {self.T}")
+
         # Economic bounds
         if self.target_balance <= 0:
             errors.append(f"target_balance must be positive, got {self.target_balance}")
         if self.min_fee <= 0:
             errors.append(f"min_fee must be positive, got {self.min_fee}")
+
+        # Consistency checks
+        if abs(self.T - self.target_balance) > 1e-6:
+            warnings.warn(
+                f"T ({self.T}) and target_balance ({self.target_balance}) differ. "
+                f"Using T for new fee mechanism calculations."
+            )
 
         # Gas and batching
         if self.gas_per_tx <= 0:
@@ -225,7 +251,11 @@ class CanonicalTaikoFeeCalculator:
         """Initialize calculator with validated parameters."""
         self.params = params
 
-        # L1 cost smoothing state
+        # L1 basefee EMA smoothing state (new specification)
+        self._smoothed_l1_basefee: Optional[float] = None  # B̂_L1(t) in ETH per L1 gas
+        self._l1_basefee_history: List[float] = []
+
+        # Legacy L1 cost smoothing state (kept for compatibility)
         self._smoothed_l1_cost: Optional[float] = None
         self._l1_cost_history: List[float] = []
 
@@ -293,8 +323,118 @@ class CanonicalTaikoFeeCalculator:
         else:
             return raw_cost
 
+    def calculate_smoothed_l1_basefee(self, l1_basefee_wei: float) -> float:
+        """
+        Calculate smoothed L1 basefee using EMA (new specification).
+
+        Args:
+            l1_basefee_wei: Raw L1 basefee in wei
+
+        Returns:
+            Smoothed L1 basefee in ETH per L1 gas
+
+        Formula:
+            B̂_L1(t) = (1 - λ_B) × B̂_L1(t-1) + λ_B × B_L1(t)
+        """
+        if l1_basefee_wei < 0:
+            raise ValueError(f"L1 basefee cannot be negative: {l1_basefee_wei}")
+
+        # Convert to ETH per L1 gas
+        l1_basefee_eth = l1_basefee_wei / 1e18
+
+        # Mock data validation
+        validate_real_data_usage("parameter", self.params.lambda_B, "lambda_B EMA smoothing factor")
+
+        # Unit safety validation if available
+        if UNIT_SAFETY_AVAILABLE:
+            try:
+                basefee_gwei = l1_basefee_wei / 1e9
+                validate_basefee_range(basefee_gwei, "calculate_smoothed_l1_basefee")
+            except (UnitValidationError, UnitOverflowError) as e:
+                warnings.warn(f"Unit validation warning in L1 basefee smoothing: {e}")
+
+        # Store in history
+        self._l1_basefee_history.append(l1_basefee_eth)
+
+        # Initialize on first call
+        if self._smoothed_l1_basefee is None:
+            self._smoothed_l1_basefee = l1_basefee_eth
+            return self._smoothed_l1_basefee
+
+        # Apply EMA smoothing: B̂_L1(t) = (1 - λ_B) × B̂_L1(t-1) + λ_B × B_L1(t)
+        lambda_B = self.params.lambda_B
+        self._smoothed_l1_basefee = (
+            (1.0 - lambda_B) * self._smoothed_l1_basefee +
+            lambda_B * l1_basefee_eth
+        )
+
+        return self._smoothed_l1_basefee
+
+    def calculate_C_DA(self, l1_basefee_wei: float) -> float:
+        """
+        Calculate DA cost term C_DA(t) (new specification).
+
+        Args:
+            l1_basefee_wei: Raw L1 basefee in wei
+
+        Returns:
+            C_DA(t) = α_data × B̂_L1(t): smoothed marginal DA cost per L2 gas (ETH)
+
+        Formula:
+            C_DA(t) = α_data × B̂_L1(t)
+        """
+        # Get smoothed L1 basefee
+        smoothed_basefee = self.calculate_smoothed_l1_basefee(l1_basefee_wei)
+
+        # Mock data validation for alpha_data
+        validate_real_data_usage("parameter", self.params.alpha_data, "alpha_data DA gas ratio")
+
+        # Calculate DA cost: C_DA(t) = α_data × B̂_L1(t)
+        C_DA = self.params.alpha_data * smoothed_basefee
+
+        # Validate result
+        if UNIT_SAFETY_AVAILABLE and C_DA > 0:
+            if C_DA < 1e-12 or C_DA > 0.1:
+                warnings.warn(
+                    f"Unusual C_DA result: {C_DA:.12f} ETH per L2 gas "
+                    f"(check alpha_data={self.params.alpha_data} and basefee units)"
+                )
+
+        return C_DA
+
+    def calculate_C_vault(self, vault_deficit: float) -> float:
+        """
+        Calculate vault healing term C_vault(t) (new specification).
+
+        Args:
+            vault_deficit: Current vault deficit in ETH (positive when underfunded)
+
+        Returns:
+            C_vault(t) = D(t)/(H × Q̄): full-strength vault-healing surcharge per L2 gas (ETH)
+
+        Formula:
+            C_vault(t) = D(t) / (H × Q̄)
+        """
+        if vault_deficit < 0:
+            raise ValueError(f"Vault deficit cannot be negative: {vault_deficit}")
+
+        # Mock data validation
+        validate_real_data_usage("parameter", self.params.Q_bar, "Q_bar average L2 gas per batch")
+        validate_real_data_usage("parameter", self.params.H, "H recovery horizon")
+
+        # Check for suspicious Q_bar values
+        if abs(self.params.Q_bar - 690000) < 1000:
+            warn_mock_data_usage("vault healing calculation", "Q_bar ≈ 690,000",
+                               "should use empirically measured average gas per batch")
+
+        # Calculate vault healing: C_vault(t) = D(t) / (H × Q̄)
+        denominator = self.params.H * self.params.Q_bar
+        C_vault = vault_deficit / denominator
+
+        return C_vault
+
     def _apply_l1_cost_smoothing(self, raw_cost: float) -> float:
-        """Apply EMA smoothing to L1 cost with outlier rejection."""
+        """Legacy L1 cost smoothing - kept for backward compatibility."""
         # Store raw cost in history
         self._l1_cost_history.append(raw_cost)
 
@@ -321,9 +461,63 @@ class CanonicalTaikoFeeCalculator:
 
         return self._smoothed_l1_cost
 
+    def calculate_estimated_fee_raw(self, l1_basefee_wei: float, vault_deficit: float) -> float:
+        """
+        CANONICAL raw fee calculation - NEW SPECIFICATION implementation.
+
+        Args:
+            l1_basefee_wei: L1 basefee in wei
+            vault_deficit: Current vault deficit (ETH, positive when underfunded)
+
+        Returns:
+            F_L2_raw(t): Raw estimated fee per L2 gas (ETH)
+
+        Formula:
+            F_L2_raw(t) = μ × C_DA(t) + ν × C_vault(t)
+        """
+        if l1_basefee_wei < 0:
+            raise ValueError(f"L1 basefee cannot be negative: {l1_basefee_wei}")
+        if vault_deficit < 0:
+            raise ValueError(f"Vault deficit cannot be negative: {vault_deficit}")
+
+        # Mock data detection for fee mechanism parameters
+        validate_real_data_usage("parameter", self.params.mu, "mu (DA cost pass-through) parameter")
+        validate_real_data_usage("parameter", self.params.nu, "nu (vault healing intensity) parameter")
+
+        # Unit safety validation if available
+        if UNIT_SAFETY_AVAILABLE:
+            if vault_deficit > 10000:  # Deficit > 10,000 ETH is suspicious
+                warnings.warn(
+                    f"Very large vault deficit: {vault_deficit:.2f} ETH - verify units are correct"
+                )
+
+        # Calculate DA cost component: μ × C_DA(t)
+        C_DA = self.calculate_C_DA(l1_basefee_wei)
+        da_component = self.params.mu * C_DA
+
+        # Calculate vault healing component: ν × C_vault(t)
+        C_vault = self.calculate_C_vault(vault_deficit)
+        vault_component = self.params.nu * C_vault
+
+        # Calculate raw fee: F_L2_raw(t) = μ × C_DA(t) + ν × C_vault(t)
+        raw_fee = da_component + vault_component
+
+        # Final unit safety validation
+        if UNIT_SAFETY_AVAILABLE and raw_fee > 0:
+            try:
+                fee_gwei = raw_fee * 1e9
+                assert_reasonable_fee(fee_gwei, "calculate_estimated_fee_raw result")
+            except (UnitValidationError, UnitOverflowError) as e:
+                # Don't fail calculation, but warn about suspicious result
+                warnings.warn(f"Fee result validation warning: {e}")
+
+        return raw_fee
+
     def calculate_estimated_fee(self, l1_cost_per_tx: float, vault_deficit: float) -> float:
         """
-        CANONICAL fee calculation - the authoritative implementation.
+        Legacy fee calculation - kept for backward compatibility.
+
+        NOTE: This method is deprecated. Use calculate_estimated_fee_raw() with L1 basefee instead.
 
         Args:
             l1_cost_per_tx: L1 cost per transaction (ETH)
@@ -335,6 +529,13 @@ class CanonicalTaikoFeeCalculator:
         Formula:
             F_estimated = max(μ × C_L1 + ν × D/H, F_min)
         """
+        warnings.warn(
+            "calculate_estimated_fee() with L1 cost is deprecated. "
+            "Use calculate_estimated_fee_raw() with L1 basefee for new specification.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         if l1_cost_per_tx < 0:
             raise ValueError(f"L1 cost cannot be negative: {l1_cost_per_tx}")
         if vault_deficit < 0:
@@ -501,7 +702,8 @@ class CanonicalTaikoFeeCalculator:
         Returns:
             Initialized VaultState
         """
-        target = self.params.target_balance
+        # Use new T parameter for target balance
+        target = self.params.T
 
         if init_mode == VaultInitMode.TARGET:
             balance = target
@@ -520,18 +722,32 @@ class CanonicalTaikoFeeCalculator:
 
     def reset_state(self) -> None:
         """Reset calculator state for new simulation."""
+        # Reset new specification state
+        self._smoothed_l1_basefee = None
+        self._l1_basefee_history.clear()
+
+        # Reset legacy state
         self._smoothed_l1_cost = None
         self._l1_cost_history.clear()
+
+        # Reset fee limiting
         self._previous_fee = None
 
 
 # Convenience functions for common operations
 def create_default_calculator() -> CanonicalTaikoFeeCalculator:
-    """Create calculator with default optimal parameters."""
+    """Create calculator with default optimal parameters (new specification)."""
     params = FeeParameters(
-        mu=0.0,       # Optimal consensus value
-        nu=0.27,      # Optimal consensus value
-        H=492         # Optimal consensus value
+        # Core mechanism (2024 NSGA-II optimized - balanced strategy)
+        mu=0.0,           # Confirmed optimal - pure deficit-based correction
+        nu=0.369,         # Updated optimal - enhanced vault healing
+        H=1794,           # Updated optimal - ~1 hour horizon for better stability
+
+        # New specification parameters (2024 optimized)
+        alpha_data=0.5,      # Realistic L1 DA gas per L2 gas (FIXED: was 20000x too high)
+        lambda_B=0.365,      # Enhanced smoothing for L1 basefee stability
+        Q_bar=690000.0,      # Average L2 gas per batch (Taiko Alethia estimate)
+        T=1000.0             # Target vault balance
     )
     return CanonicalTaikoFeeCalculator(params)
 
@@ -540,8 +756,14 @@ def create_balanced_calculator() -> CanonicalTaikoFeeCalculator:
     """Create calculator with balanced parameters."""
     params = FeeParameters(
         mu=0.0,       # Consensus optimal
-        nu=0.27,      # Consensus optimal
-        H=492         # Consensus optimal
+        nu=0.48,      # Conservative approach (higher than optimal for safety)
+        H=1794,       # Updated to match optimized horizon
+
+        # Standard new specification parameters
+        alpha_data=0.5,       # Realistic L1 DA gas per L2 gas ratio
+        lambda_B=0.2,        # Slightly faster smoothing for balanced approach
+        Q_bar=690000.0,
+        T=1000.0
     )
     return CanonicalTaikoFeeCalculator(params)
 
@@ -550,8 +772,14 @@ def create_crisis_calculator() -> CanonicalTaikoFeeCalculator:
     """Create calculator with crisis-resilient parameters."""
     params = FeeParameters(
         mu=0.0,       # Consensus optimal
-        nu=0.88,      # Crisis-resilient value
-        H=120         # Crisis-resilient value
+        nu=0.88,      # Aggressive deficit recovery
+        H=120,        # Shorter horizon for faster response
+
+        # Crisis-tuned parameters
+        alpha_data=0.5,       # Realistic L1 DA gas per L2 gas ratio
+        lambda_B=0.5,        # Very fast L1 response for crisis
+        Q_bar=690000.0,
+        T=1000.0
     )
     return CanonicalTaikoFeeCalculator(params)
 
@@ -570,7 +798,8 @@ def get_optimal_parameters() -> Dict[str, Union[float, int]]:
     """Get the research-validated optimal parameter set."""
     return {
         "mu": 0.0,
-        "nu": 0.27,
-        "H": 492,
-        "description": "Consensus optimal parameters from multi-scenario research"
+        "nu": 0.369,
+        "H": 1794,
+        "lambda_B": 0.365,
+        "description": "2024 NSGA-II optimized parameters from balanced multi-objective optimization"
     }
