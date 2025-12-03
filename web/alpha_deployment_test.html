@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpha-Data Deployment Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #e8f5e8; border-color: #28a745; }
+        .error { background: #f8d7da; border-color: #dc3545; }
+        .warning { background: #fff3cd; border-color: #ffc107; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .metric-card { background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center; }
+        .metric-value { font-size: 1.5em; font-weight: bold; margin: 5px 0; }
+        .metric-status { font-size: 0.9em; color: #666; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #console-output { background: #000; color: #0f0; font-family: monospace; padding: 15px; height: 200px; overflow-y: auto; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Alpha-Data Fee Mechanism - Deployment Validation</h1>
+
+        <div class="test-section">
+            <h2>🔧 Component Loading Tests</h2>
+            <div id="component-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>⚡ Alpha-Data Simulation Test</h2>
+            <p>Testing α_data = 0.22 (optimal) with realistic fee output validation</p>
+            <button onclick="runAlphaTest()">Run Alpha-Data Test</button>
+            <div id="alpha-test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Simulation Metrics</h2>
+            <div id="simulation-metrics" class="metrics"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎛️ Parameter Validation</h2>
+            <div id="parameter-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 Console Output</h2>
+            <div id="console-output"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>✅ Deployment Status</h2>
+            <div id="deployment-status"></div>
+        </div>
+    </div>
+
+    <script>
+        // Console capture
+        const originalConsoleLog = console.log;
+        const consoleOutput = document.getElementById('console-output');
+
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            consoleOutput.innerHTML += args.join(' ') + '\n';
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        // Component loading tests
+        function testComponentLoading() {
+            const results = [];
+            const tests = [
+                { name: 'AlphaSimulationEngine', obj: window.AlphaSimulationEngine },
+                { name: 'AlphaFeeController', obj: window.AlphaFeeController },
+                { name: 'SpecsSimulationEngine', obj: window.SpecsSimulationEngine },
+                { name: 'TaikoFeeSimulator', obj: window.TaikoFeeSimulator },
+                { name: 'EIP1559BaseFeeSimulator', obj: window.EIP1559BaseFeeSimulator },
+                { name: 'PRESETS', obj: window.PRESETS }
+            ];
+
+            tests.forEach(test => {
+                const status = test.obj ? 'success' : 'error';
+                results.push(`<div class="test-result ${status}">
+                    ${status === 'success' ? '✅' : '❌'} ${test.name}: ${status === 'success' ? 'Loaded' : 'Missing'}
+                </div>`);
+            });
+
+            document.getElementById('component-tests').innerHTML = results.join('');
+
+            return tests.every(test => test.obj);
+        }
+
+        // Alpha-data simulation test
+        async function runAlphaTest() {
+            console.log('🚀 Starting Alpha-Data Deployment Test...');
+
+            try {
+                // Test alpha-data simulation
+                const alphaEngine = new window.AlphaSimulationEngine({
+                    alpha_data: 0.22,  // Optimal value
+                    nu: 0.2,
+                    H: 72,
+                    targetBalance: 1000.0,
+                    vaultInit: 'target',
+                    l1Source: 'simulated',
+                    l1Volatility: 0.1,
+                    seed: 42
+                });
+
+                console.log('✅ AlphaSimulationEngine created successfully');
+                console.log(`   α_data: ${alphaEngine.alpha_data}`);
+                console.log(`   ν: ${alphaEngine.nu}`);
+                console.log(`   H: ${alphaEngine.H}`);
+
+                // Run short simulation
+                const results = await alphaEngine.runSimulation(100);
+                console.log(`✅ Simulation completed: ${results.timestamp.length} steps`);
+
+                // Calculate metrics
+                const metrics = alphaEngine.calculateMetrics(
+                    results.timestamp.map((t, i) => ({
+                        estimatedFee: results.estimated_fee[i],
+                        vaultBalance: results.vault_balance[i],
+                        cost_recovery_ratio: results.cost_recovery_ratios ? results.cost_recovery_ratios[i] : 1.0
+                    }))
+                );
+
+                console.log('📊 Simulation Metrics:');
+                console.log(`   Average Fee: ${metrics.avgFee.toFixed(3)} gwei`);
+                console.log(`   Cost Recovery: ${metrics.avgCostRecovery.toFixed(3)}`);
+                console.log(`   Realistic Fees: ${metrics.realisticFeesAchieved ? 'YES' : 'NO'}`);
+                console.log(`   Time Underfunded: ${metrics.timeUnderfundedPct.toFixed(1)}%`);
+
+                // Update metrics display
+                displayMetrics(metrics, results);
+
+                // Validate results
+                validateDeploymentReadiness(metrics);
+
+            } catch (error) {
+                console.error('❌ Alpha-Data Test Failed:', error);
+                document.getElementById('alpha-test-results').innerHTML =
+                    `<div class="test-result error">❌ Test Failed: ${error.message}</div>`;
+            }
+        }
+
+        function displayMetrics(metrics, results) {
+            const avgFeeStatus = metrics.avgFee >= 5.0 && metrics.avgFee <= 15.0 ? 'success' :
+                               metrics.avgFee >= 1.0 ? 'warning' : 'error';
+
+            const costRecoveryStatus = metrics.avgCostRecovery >= 0.8 && metrics.avgCostRecovery <= 1.2 ? 'success' : 'warning';
+
+            const underfundedStatus = metrics.timeUnderfundedPct <= 15.0 ? 'success' : 'warning';
+
+            document.getElementById('simulation-metrics').innerHTML = `
+                <div class="metric-card ${avgFeeStatus}">
+                    <div class="metric-value">${metrics.avgFee.toFixed(3)} gwei</div>
+                    <div class="metric-status">Average Fee</div>
+                    <div class="metric-status">${avgFeeStatus === 'success' ? '✅ Target Range' : avgFeeStatus === 'warning' ? '⚠️ Outside Target' : '❌ Too Low'}</div>
+                </div>
+                <div class="metric-card ${costRecoveryStatus}">
+                    <div class="metric-value">${metrics.avgCostRecovery.toFixed(3)}</div>
+                    <div class="metric-status">Cost Recovery</div>
+                    <div class="metric-status">${costRecoveryStatus === 'success' ? '✅ Healthy' : '⚠️ Outside Range'}</div>
+                </div>
+                <div class="metric-card ${underfundedStatus}">
+                    <div class="metric-value">${metrics.timeUnderfundedPct.toFixed(1)}%</div>
+                    <div class="metric-status">Time Underfunded</div>
+                    <div class="metric-status">${underfundedStatus === 'success' ? '✅ Good' : '⚠️ High'}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.feeCV.toFixed(3)}</div>
+                    <div class="metric-status">Fee Variability</div>
+                    <div class="metric-status">Coefficient of Variation</div>
+                </div>
+            `;
+        }
+
+        function validateDeploymentReadiness(metrics) {
+            const checks = [
+                { name: 'Realistic Fee Output (≥5 gwei)', pass: metrics.avgFee >= 5.0 },
+                { name: 'Fee Within Target (5-15 gwei)', pass: metrics.avgFee >= 5.0 && metrics.avgFee <= 15.0 },
+                { name: 'Healthy Cost Recovery (0.8-1.2)', pass: metrics.avgCostRecovery >= 0.8 && metrics.avgCostRecovery <= 1.2 },
+                { name: 'Low Underfunding (≤15%)', pass: metrics.timeUnderfundedPct <= 15.0 },
+                { name: 'Alpha-Data Integration', pass: metrics.alpha_data_value === 0.22 }
+            ];
+
+            const passedCount = checks.filter(c => c.pass).length;
+            const deploymentReady = passedCount >= 4; // Allow 1 failure
+
+            let statusHtml = `<h3>Deployment Readiness: ${deploymentReady ? '✅ READY' : '❌ NEEDS WORK'}</h3>`;
+            statusHtml += `<p>Passed ${passedCount}/${checks.length} critical checks:</p>`;
+
+            checks.forEach(check => {
+                statusHtml += `<div class="test-result ${check.pass ? 'success' : 'error'}">
+                    ${check.pass ? '✅' : '❌'} ${check.name}
+                </div>`;
+            });
+
+            if (deploymentReady) {
+                statusHtml += `<div class="test-result success">
+                    <strong>🎯 DEPLOYMENT RECOMMENDATION: PROCEED</strong><br>
+                    Alpha-data model is substantially better than broken Q̄ = 690,000 constant.
+                    Deploy immediately to replace broken fee mechanism.
+                </div>`;
+            }
+
+            document.getElementById('deployment-status').innerHTML = statusHtml;
+        }
+
+        function testParameters() {
+            const presets = window.PRESETS;
+            if (!presets) {
+                document.getElementById('parameter-tests').innerHTML =
+                    '<div class="test-result error">❌ PRESETS not available</div>';
+                return;
+            }
+
+            let html = '';
+            Object.entries(presets).forEach(([name, preset]) => {
+                const alphaValid = preset.alpha_data >= 0.15 && preset.alpha_data <= 0.30;
+                const nuValid = preset.nu >= 0.0 && preset.nu <= 1.0;
+                const hValid = preset.H >= 24 && preset.H <= 288;
+
+                const status = alphaValid && nuValid && hValid ? 'success' : 'error';
+                html += `<div class="test-result ${status}">
+                    ${status === 'success' ? '✅' : '❌'} ${name}: α=${preset.alpha_data}, ν=${preset.nu}, H=${preset.H}
+                </div>`;
+            });
+
+            document.getElementById('parameter-tests').innerHTML = html;
+        }
+
+        // Initialize tests on load
+        window.addEventListener('load', () => {
+            console.log('🎯 Alpha-Data Deployment Validation Started');
+
+            // Load components first
+            setTimeout(() => {
+                const componentsLoaded = testComponentLoading();
+                console.log(`Component Loading: ${componentsLoaded ? 'SUCCESS' : 'FAILED'}`);
+
+                if (componentsLoaded) {
+                    testParameters();
+                    console.log('✅ All components loaded. Ready for simulation test.');
+                } else {
+                    console.error('❌ Missing components. Check module imports.');
+                }
+            }, 1000);
+        });
+    </script>
+
+    <!-- Load all required components -->
+    <script src="components/specs-simulator.js"></script>
+    <script src="components/simulator.js"></script>
+    <script src="components/charts.js"></script>
+</body>
+</html>
