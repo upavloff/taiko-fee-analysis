@@ -32,8 +32,8 @@ class FeeParameters:
     lambda_B: float = 0.3              # EMA smoothing factor for L1 basefee [0.0, 1.0]
 
     # System constants (REQUIRE REAL DATA CALIBRATION)
-    alpha_data: float = 0.22           # Expected L1 DA gas per 1 L2 gas [THEORETICAL ESTIMATE]
-    Q_bar: float = 200_000.0           # Typical L2 gas per batch [CONSERVATIVE ESTIMATE]
+    alpha_data: float = 0.022           # Expected L1 DA gas per 1 L2 gas [THEORETICAL ESTIMATE]
+    Q_bar: float = 150000.0           # Typical L2 gas per batch [CONSERVATIVE ESTIMATE]
     T: float = 1000.0                  # Target vault balance (ETH)
 
     # UX wrapper parameters

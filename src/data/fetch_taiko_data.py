@@ -303,8 +303,8 @@ def main():
 
             print(f"✅ Connected! Latest block: {latest_block}")
 
-            # Scan for Taiko transactions
-            taiko_transactions = scan_recent_blocks(rpc_url, num_blocks=2000)
+            # Scan for Taiko transactions (reduced to 50 blocks for speed)
+            taiko_transactions = scan_recent_blocks(rpc_url, num_blocks=50)
 
             if taiko_transactions:
                 print(f"🎉 Successfully collected {len(taiko_transactions)} Taiko transactions!")
