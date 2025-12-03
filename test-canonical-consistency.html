@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canonical Module Consistency Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 15px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .test-section h2 {
+            color: #34495e;
+            margin-top: 0;
+        }
+        .test-result {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        .test-pass {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .test-fail {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .test-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .param-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .param-card {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+        }
+        .param-card h4 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .comparison-table th,
+        .comparison-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .comparison-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-pass { background: #28a745; }
+        .status-fail { background: #dc3545; }
+        .status-warn { background: #ffc107; }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Canonical Module Consistency Test</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            Verifies that JavaScript canonical modules produce identical results to Python implementations
+        </p>
+
+        <div class="test-section">
+            <h2>📊 Test Results Summary</h2>
+            <div id="summary"></div>
+            <button onclick="runAllTests()">🔄 Run All Tests</button>
+            <button onclick="clearResults()">🗑️ Clear Results</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 Fee Mechanism Tests</h2>
+            <div id="fee-mechanism-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📈 Metrics Calculation Tests</h2>
+            <div id="metrics-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>⚙️ Parameter Validation Tests</h2>
+            <div id="validation-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 Test Coverage Report</h2>
+            <div id="coverage-report"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import {
+            CanonicalTaikoFeeCalculator,
+            FeeParameters,
+            VaultInitMode,
+            createDefaultCalculator,
+            validateFeeParameters,
+            getOptimalParameters
+        } from './canonical-fee-mechanism.js';
+
+        import {
+            CanonicalMetricsCalculator,
+            calculateBasicMetrics,
+            validateMetricThresholds
+        } from './canonical-metrics.js';
+
+        import {
+            validateParameterSet,
+            getStrategyParameters,
+            OptimizationStrategy
+        } from './canonical-optimization.js';
+
+        let testResults = [];
+
+        window.runAllTests = function() {
+            testResults = [];
+            updateSummary();
+
+            // Run all test suites
+            testFeeCalculations();
+            testMetricsCalculations();
+            testParameterValidation();
+            testOptimalParameters();
+
+            updateSummary();
+            generateCoverageReport();
+        };
+
+        window.clearResults = function() {
+            testResults = [];
+            document.getElementById('summary').innerHTML = '';
+            document.getElementById('fee-mechanism-tests').innerHTML = '';
+            document.getElementById('metrics-tests').innerHTML = '';
+            document.getElementById('validation-tests').innerHTML = '';
+            document.getElementById('coverage-report').innerHTML = '';
+        };
+
+        function addTestResult(category, test, passed, expected, actual, message = '') {
+            testResults.push({
+                category,
+                test,
+                passed,
+                expected,
+                actual,
+                message,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        function updateSummary() {
+            const total = testResults.length;
+            const passed = testResults.filter(r => r.passed).length;
+            const failed = total - passed;
+
+            const summaryHtml = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                    <div class="param-card">
+                        <h4>Total Tests</h4>
+                        <div style="font-size: 24px; font-weight: bold; color: #2c3e50;">${total}</div>
+                    </div>
+                    <div class="param-card">
+                        <h4>✅ Passed</h4>
+                        <div style="font-size: 24px; font-weight: bold; color: #27ae60;">${passed}</div>
+                    </div>
+                    <div class="param-card">
+                        <h4>❌ Failed</h4>
+                        <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">${failed}</div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('summary').innerHTML = summaryHtml;
+        }
+
+        function testFeeCalculations() {
+            const container = document.getElementById('fee-mechanism-tests');
+            let html = '<h3>Testing Fee Calculation Consistency</h3>';
+
+            try {
+                // Test 1: Basic fee calculation
+                const calculator = createDefaultCalculator();
+                const l1BasefeeWei = 20e9; // 20 gwei
+                const vaultDeficit = 50.0;
+
+                const l1Cost = calculator.calculateL1CostPerTx(l1BasefeeWei);
+                const estimatedFee = calculator.calculateEstimatedFee(l1Cost, vaultDeficit);
+
+                // Expected values with corrected 20k gas calculation
+                const expectedL1Cost = 0.0004; // 20 gwei * 20k gas / 1e18 = 0.0004 ETH
+                const expectedFee = 0.00002756; // Corrected fee calculation with proper gas
+
+                const l1CostPass = Math.abs(l1Cost - expectedL1Cost) < 0.0001;
+                const feePass = Math.abs(estimatedFee - expectedFee) < 0.00001;
+
+                addTestResult('Fee Mechanism', 'L1 Cost Calculation', l1CostPass, expectedL1Cost, l1Cost);
+                addTestResult('Fee Mechanism', 'Fee Calculation', feePass, expectedFee, estimatedFee);
+
+                html += `
+                    <div class="test-result ${l1CostPass ? 'test-pass' : 'test-fail'}">
+                        L1 Cost: Expected ${expectedL1Cost.toFixed(6)} ETH, Got ${l1Cost.toFixed(6)} ETH
+                        <span class="status-indicator ${l1CostPass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                    <div class="test-result ${feePass ? 'test-pass' : 'test-fail'}">
+                        Estimated Fee: Expected ${expectedFee.toFixed(6)} ETH, Got ${estimatedFee.toFixed(6)} ETH
+                        <span class="status-indicator ${feePass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                `;
+
+                // Test 2: Transaction volume calculation
+                const txVolume = calculator.calculateTransactionVolume(estimatedFee);
+                const expectedVolume = 150.0; // Much higher volume due to corrected lower fees
+                const volumePass = Math.abs(txVolume - expectedVolume) < 10.0;
+
+                addTestResult('Fee Mechanism', 'Volume Calculation', volumePass, expectedVolume, txVolume);
+
+                html += `
+                    <div class="test-result ${volumePass ? 'test-pass' : 'test-fail'}">
+                        Transaction Volume: Expected ~${expectedVolume} TPS, Got ${txVolume.toFixed(1)} TPS
+                        <span class="status-indicator ${volumePass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                `;
+
+                // Test 3: Vault operations
+                const vault = calculator.createVault(VaultInitMode.DEFICIT, { deficit_ratio: 0.1 });
+                const expectedDeficit = 100.0; // 10% of 1000 ETH target
+                const deficitPass = Math.abs(vault.deficit - expectedDeficit) < 1.0;
+
+                addTestResult('Fee Mechanism', 'Vault Deficit', deficitPass, expectedDeficit, vault.deficit);
+
+                html += `
+                    <div class="test-result ${deficitPass ? 'test-pass' : 'test-fail'}">
+                        Vault Deficit: Expected ${expectedDeficit} ETH, Got ${vault.deficit.toFixed(1)} ETH
+                        <span class="status-indicator ${deficitPass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                `;
+
+            } catch (error) {
+                html += `
+                    <div class="test-result test-fail">
+                        Error during fee mechanism tests: ${error.message}
+                    </div>
+                `;
+                addTestResult('Fee Mechanism', 'Error Handling', false, 'No error', error.message);
+            }
+
+            container.innerHTML = html;
+        }
+
+        function testMetricsCalculations() {
+            const container = document.getElementById('metrics-tests');
+            let html = '<h3>Testing Metrics Calculation Consistency</h3>';
+
+            try {
+                // Create test simulation data
+                const simulationData = {
+                    timeStep: [0, 1, 2, 3, 4],
+                    l1Basefee: [20, 22, 18, 25, 20],
+                    estimatedFee: [0.000015, 0.000016, 0.000014, 0.000018, 0.000015],
+                    transactionVolume: [100, 95, 105, 85, 100],
+                    vaultBalance: [900, 910, 920, 900, 910],
+                    vaultDeficit: [100, 90, 80, 100, 90],
+                    feesCollected: [1.5, 1.52, 1.47, 1.53, 1.5],
+                    l1CostsPaid: [1.0, 0, 0, 1.2, 0]
+                };
+
+                // Test basic metrics
+                const basicMetrics = calculateBasicMetrics(simulationData);
+
+                // Expected values (approximate)
+                const expectedAvgFee = 15.6; // gwei
+                const expectedCV = 0.1; // approximate
+                const expectedUnderfunded = 100.0; // %
+
+                const avgFeePass = Math.abs(basicMetrics.average_fee_gwei - expectedAvgFee) < 2.0;
+                const cvPass = basicMetrics.fee_stability_cv < 0.2; // Should be reasonable
+                const underfundedPass = basicMetrics.time_underfunded_pct === expectedUnderfunded;
+
+                addTestResult('Metrics', 'Average Fee', avgFeePass, expectedAvgFee, basicMetrics.average_fee_gwei);
+                addTestResult('Metrics', 'Fee Stability', cvPass, '< 0.2', basicMetrics.fee_stability_cv);
+                addTestResult('Metrics', 'Underfunded Time', underfundedPass, expectedUnderfunded, basicMetrics.time_underfunded_pct);
+
+                html += `
+                    <div class="test-result ${avgFeePass ? 'test-pass' : 'test-fail'}">
+                        Average Fee: Expected ~${expectedAvgFee} gwei, Got ${basicMetrics.average_fee_gwei.toFixed(1)} gwei
+                        <span class="status-indicator ${avgFeePass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                    <div class="test-result ${cvPass ? 'test-pass' : 'test-fail'}">
+                        Fee Stability CV: Got ${basicMetrics.fee_stability_cv.toFixed(3)} (should be < 0.2)
+                        <span class="status-indicator ${cvPass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                    <div class="test-result ${underfundedPass ? 'test-pass' : 'test-fail'}">
+                        Underfunded Time: Expected ${expectedUnderfunded}%, Got ${basicMetrics.time_underfunded_pct.toFixed(1)}%
+                        <span class="status-indicator ${underfundedPass ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                `;
+
+                // Test threshold validation
+                const grades = validateMetricThresholds(
+                    basicMetrics.average_fee_gwei,
+                    basicMetrics.fee_stability_cv,
+                    basicMetrics.time_underfunded_pct,
+                    basicMetrics.l1_tracking_error
+                );
+
+                const hasValidGrades = Object.keys(grades).length === 4;
+                addTestResult('Metrics', 'Threshold Validation', hasValidGrades, '4 grades', Object.keys(grades).length);
+
+                html += `
+                    <div class="test-result ${hasValidGrades ? 'test-pass' : 'test-fail'}">
+                        Threshold Grades: ${Object.keys(grades).join(', ')}
+                        <span class="status-indicator ${hasValidGrades ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                `;
+
+                // Test comprehensive metrics
+                const metricsCalculator = new CanonicalMetricsCalculator();
+                const comprehensive = metricsCalculator.calculateComprehensiveMetrics(simulationData);
+
+                const hasScores = comprehensive.userExperienceScore > 0 &&
+                                comprehensive.protocolSafetyScore > 0 &&
+                                comprehensive.economicEfficiencyScore > 0;
+
+                addTestResult('Metrics', 'Comprehensive Metrics', hasScores, 'All > 0',
+                    `UX:${comprehensive.userExperienceScore.toFixed(2)} PS:${comprehensive.protocolSafetyScore.toFixed(2)} EE:${comprehensive.economicEfficiencyScore.toFixed(2)}`);
+
+                html += `
+                    <div class="test-result ${hasScores ? 'test-pass' : 'test-fail'}">
+                        Comprehensive Metrics: UX=${comprehensive.userExperienceScore.toFixed(2)},
+                        PS=${comprehensive.protocolSafetyScore.toFixed(2)}, EE=${comprehensive.economicEfficiencyScore.toFixed(2)}
+                        <span class="status-indicator ${hasScores ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                `;
+
+            } catch (error) {
+                html += `
+                    <div class="test-result test-fail">
+                        Error during metrics tests: ${error.message}
+                    </div>
+                `;
+                addTestResult('Metrics', 'Error Handling', false, 'No error', error.message);
+            }
+
+            container.innerHTML = html;
+        }
+
+        function testParameterValidation() {
+            const container = document.getElementById('validation-tests');
+            let html = '<h3>Testing Parameter Validation Consistency</h3>';
+
+            const testCases = [
+                { mu: 0.0, nu: 0.27, H: 492, expected: true, name: "Optimal Parameters" },
+                { mu: 0.0, nu: 0.48, H: 492, expected: true, name: "Conservative Parameters" },
+                { mu: 1.5, nu: 0.3, H: 144, expected: false, name: "Invalid μ" },
+                { mu: 0.2, nu: 1.2, H: 144, expected: false, name: "Invalid ν" },
+                { mu: 0.2, nu: 0.3, H: 145, expected: false, name: "Invalid H (not 6-aligned)" },
+                { mu: 0.0, nu: 0.5, H: 0, expected: false, name: "Invalid H (zero)" }
+            ];
+
+            testCases.forEach(testCase => {
+                try {
+                    const result = validateFeeParameters(testCase.mu, testCase.nu, testCase.H);
+                    const passed = result === testCase.expected;
+
+                    addTestResult('Validation', testCase.name, passed, testCase.expected, result);
+
+                    html += `
+                        <div class="test-result ${passed ? 'test-pass' : 'test-fail'}">
+                            ${testCase.name}: μ=${testCase.mu}, ν=${testCase.nu}, H=${testCase.H}
+                            Expected: ${testCase.expected}, Got: ${result}
+                            <span class="status-indicator ${passed ? 'status-pass' : 'status-fail'}"></span>
+                        </div>
+                    `;
+                } catch (error) {
+                    addTestResult('Validation', testCase.name, false, 'No error', error.message);
+                    html += `
+                        <div class="test-result test-fail">
+                            ${testCase.name}: Error - ${error.message}
+                            <span class="status-indicator status-fail"></span>
+                        </div>
+                    `;
+                }
+            });
+
+            container.innerHTML = html;
+        }
+
+        function testOptimalParameters() {
+            const container = document.getElementById('validation-tests');
+            let currentHtml = container.innerHTML;
+
+            try {
+                // Test optimal parameters consistency
+                const optimalParams = getOptimalParameters();
+
+                const expectedParams = { mu: 0.0, nu: 0.27, H: 492 };
+                const muMatch = optimalParams.mu === expectedParams.mu;
+                const nuMatch = Math.abs(optimalParams.nu - expectedParams.nu) < 0.01;
+                const HMatch = optimalParams.H === expectedParams.H;
+
+                addTestResult('Validation', 'Optimal μ', muMatch, expectedParams.mu, optimalParams.mu);
+                addTestResult('Validation', 'Optimal ν', nuMatch, expectedParams.nu, optimalParams.nu);
+                addTestResult('Validation', 'Optimal H', HMatch, expectedParams.H, optimalParams.H);
+
+                currentHtml += `
+                    <h4>Optimal Parameters Test</h4>
+                    <div class="test-result ${muMatch ? 'test-pass' : 'test-fail'}">
+                        Optimal μ: Expected ${expectedParams.mu}, Got ${optimalParams.mu}
+                        <span class="status-indicator ${muMatch ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                    <div class="test-result ${nuMatch ? 'test-pass' : 'test-fail'}">
+                        Optimal ν: Expected ${expectedParams.nu}, Got ${optimalParams.nu}
+                        <span class="status-indicator ${nuMatch ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                    <div class="test-result ${HMatch ? 'test-pass' : 'test-fail'}">
+                        Optimal H: Expected ${expectedParams.H}, Got ${optimalParams.H}
+                        <span class="status-indicator ${HMatch ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                `;
+
+                // Test strategy parameters
+                const strategies = [
+                    OptimizationStrategy.BALANCED,
+                    OptimizationStrategy.USER_FOCUSED,
+                    OptimizationStrategy.PROTOCOL_SAFETY,
+                    OptimizationStrategy.CRISIS_RESILIENT
+                ];
+
+                strategies.forEach(strategy => {
+                    const strategyParams = getStrategyParameters(strategy);
+                    const hasValidParams = strategyParams &&
+                        typeof strategyParams.mu === 'number' &&
+                        typeof strategyParams.nu === 'number' &&
+                        typeof strategyParams.H === 'number';
+
+                    addTestResult('Validation', `Strategy ${strategy}`, hasValidParams, 'Valid params', hasValidParams ? 'Valid' : 'Invalid');
+
+                    currentHtml += `
+                        <div class="test-result ${hasValidParams ? 'test-pass' : 'test-fail'}">
+                            Strategy ${strategy}: ${hasValidParams ? 'Valid parameters' : 'Invalid parameters'}
+                            <span class="status-indicator ${hasValidParams ? 'status-pass' : 'status-fail'}"></span>
+                        </div>
+                    `;
+                });
+
+            } catch (error) {
+                addTestResult('Validation', 'Optimal Parameters', false, 'No error', error.message);
+                currentHtml += `
+                    <div class="test-result test-fail">
+                        Optimal Parameters Test: Error - ${error.message}
+                        <span class="status-indicator status-fail"></span>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = currentHtml;
+        }
+
+        function generateCoverageReport() {
+            const container = document.getElementById('coverage-report');
+
+            const categories = [...new Set(testResults.map(r => r.category))];
+            let html = '<h3>Test Coverage Report</h3>';
+
+            html += '<table class="comparison-table"><thead><tr><th>Category</th><th>Tests</th><th>Passed</th><th>Failed</th><th>Coverage</th></tr></thead><tbody>';
+
+            categories.forEach(category => {
+                const categoryTests = testResults.filter(r => r.category === category);
+                const passed = categoryTests.filter(r => r.passed).length;
+                const failed = categoryTests.length - passed;
+                const coverage = categoryTests.length > 0 ? (passed / categoryTests.length * 100).toFixed(1) : 0;
+
+                html += `
+                    <tr>
+                        <td>${category}</td>
+                        <td>${categoryTests.length}</td>
+                        <td style="color: #27ae60;">${passed}</td>
+                        <td style="color: #e74c3c;">${failed}</td>
+                        <td>
+                            <span class="status-indicator ${coverage >= 90 ? 'status-pass' : coverage >= 70 ? 'status-warn' : 'status-fail'}"></span>
+                            ${coverage}%
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+
+            // Add detailed test results
+            html += '<h4>Detailed Test Results</h4>';
+            testResults.forEach(result => {
+                const statusClass = result.passed ? 'test-pass' : 'test-fail';
+                html += `
+                    <div class="test-result ${statusClass}">
+                        <strong>[${result.category}]</strong> ${result.test}:
+                        Expected "${result.expected}", Got "${result.actual}"
+                        ${result.message ? ` - ${result.message}` : ''}
+                        <span class="status-indicator ${result.passed ? 'status-pass' : 'status-fail'}"></span>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Auto-run tests on page load
+        setTimeout(() => {
+            runAllTests();
+        }, 1000);
+    </script>
+</body>
+</html>

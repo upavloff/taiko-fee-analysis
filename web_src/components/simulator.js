@@ -127,7 +127,8 @@ class TaikoFeeSimulator {
 
         // Transaction parameters (aligned with Python implementation)
         this.txsPerBatch = params.txsPerBatch || 100;  // Transactions per L1 batch (matches Python default)
-        this.batchGas = 200000;        // Gas cost for L1 batch submission
+        this.batchGas = params.batchGas || 200000;        // Gas cost for L1 batch submission (configurable)
+        this.minGasPerTx = params.minGasPerTx || 200;     // Minimum gas per transaction (configurable)
 
         // L1 basefee trend tracking for cost estimation
         this.l1BasefeeHistory = [];
@@ -139,12 +140,12 @@ class TaikoFeeSimulator {
     }
 
     updateGasPerTx() {
-        // CORRECTED: max(200,000 / Expected Tx Volume, 200) - fixed from bug analysis
-        // This implements economies of scale with a 200 gas minimum for overhead
+        // CORRECTED: max(batchGas / Expected Tx Volume, minGasPerTx) - fixed from bug analysis
+        // This implements economies of scale with configurable minimum gas for overhead
         const baseGasPerTx = this.batchGas / this.txsPerBatch;
-        this.gasPerTx = Math.max(baseGasPerTx, 200);
+        this.gasPerTx = Math.max(baseGasPerTx, this.minGasPerTx);
 
-        console.log(`gasPerTx = max(${this.batchGas} / ${this.txsPerBatch}, 200) = max(${baseGasPerTx}, 200) = ${this.gasPerTx} gas`);
+        console.log(`gasPerTx = max(${this.batchGas} / ${this.txsPerBatch}, ${this.minGasPerTx}) = max(${baseGasPerTx}, ${this.minGasPerTx}) = ${this.gasPerTx} gas`);
         console.log(`L1 cost per tx = basefee * ${this.gasPerTx} / 1e18`);
     }
 

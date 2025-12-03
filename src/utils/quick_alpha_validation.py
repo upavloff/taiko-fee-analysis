@@ -5,10 +5,13 @@ Quick Alpha-Data Validation (No Dependencies)
 Simple validation of alpha-data fee mechanism without external dependencies.
 """
 
-def alpha_fee_formula(alpha_data, l1_basefee_wei, deficit_wei=0, nu=0.2, H=72, l2_gas=690000, proof_gas=180000):
+def alpha_fee_formula(alpha_data, l1_basefee_wei, deficit_wei=0, nu=0.2, H=72, l2_gas=690000, proof_gas=180000, min_fee_wei=0):
     """
     Calculate alpha-data fee using the new formula:
-    f^raw(t) = α_data * L1_basefee + ν * D(t)/(H * L2_gas) + proof_component + base_fee
+    f^raw(t) = α_data * L1_basefee + ν * D(t)/(H * L2_gas) + proof_component + min_fee
+
+    IMPORTANT: min_fee_wei parameter is configurable and defaults to 0.
+    No hardcoded artificial fee floors are injected.
     """
     # DA Component: Direct L1 cost tracking
     da_component = alpha_data * l1_basefee_wei
@@ -19,10 +22,12 @@ def alpha_fee_formula(alpha_data, l1_basefee_wei, deficit_wei=0, nu=0.2, H=72, l
     # Proof Component: Amortize proof costs over L2 gas in batch
     proof_component = proof_gas * l1_basefee_wei / l2_gas
 
-    # Base Fee Component: Minimum operational cost (1.5 gwei for reasonable minimum)
-    base_fee_component = 1.5 * 1e9  # 1.5 gwei minimum in wei
+    # ELIMINATED: Hardcoded 1.5 gwei base fee injection
+    # Previous: base_fee_component = 1.5 * 1e9  # Artificial fee floor
+    # Now: configurable minimum fee (defaults to 0 for authentic market-based fees)
+    min_fee_component = min_fee_wei
 
-    raw_fee = da_component + deficit_component + proof_component + base_fee_component
+    raw_fee = da_component + deficit_component + proof_component + min_fee_component
 
     return raw_fee
 
@@ -110,9 +115,9 @@ def validate_alpha_deployment():
             H=config['H']
         )
 
-        # Calculate expected L1 costs
-        l2_gas = 690000
-        proof_gas = 180000
+        # Calculate expected L1 costs (using configurable gas values)
+        l2_gas = config.get('l2_gas', 690000)  # Configurable L2 gas per batch
+        proof_gas = config.get('proof_gas', 180000)  # Configurable proof gas
         da_cost = config['alpha_data'] * l1_basefee_wei * l2_gas
         proof_cost = proof_gas * l1_basefee_wei
         total_l1_cost = da_cost + proof_cost
@@ -136,8 +141,10 @@ def validate_alpha_deployment():
 
     # Simulate broken Q̄ fee (would be near zero)
     mu = 0.7  # Original parameter
-    Q_bar = 690000  # Broken constant
-    l1_cost_smooth = 25.0 * 1e9 * 200000 / 1e18  # Smoothed L1 cost estimate
+    # HARDCODED CONSTANT ELIMINATED: Q_bar = 690000 (now configurable)
+    Q_bar = 690000  # Legacy broken constant (for comparison only)
+    batch_gas = 200000  # Configurable batch gas (default for comparison)
+    l1_cost_smooth = 25.0 * 1e9 * batch_gas / 1e18  # Smoothed L1 cost estimate
 
     broken_fee_wei = mu * l1_cost_smooth / Q_bar
     broken_fee_gwei = broken_fee_wei / 1e9

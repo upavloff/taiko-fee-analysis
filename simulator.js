@@ -47,8 +47,8 @@ class EIP1559BaseFeeSimulator {
         newBaseFee = Math.min(newBaseFee, maxIncrease);
         newBaseFee = Math.max(newBaseFee, maxDecrease);
 
-        // Ensure minimum basefee of 1 gwei (matches Python implementation)
-        this.currentBaseFee = Math.max(newBaseFee, 1e9);
+        // Use realistic basefee without artificial floor (was 1 gwei minimum)
+        this.currentBaseFee = Math.max(newBaseFee, 1e6);  // 0.001 gwei realistic minimum
 
         return this.currentBaseFee;
     }
@@ -126,7 +126,8 @@ class TaikoFeeSimulator {
 
         // Transaction parameters (aligned with Python implementation)
         this.txsPerBatch = params.txsPerBatch || 100;  // Transactions per L1 batch (matches Python default)
-        this.batchGas = 200000;        // Gas cost for L1 batch submission
+        this.batchGas = params.batchGas || 200000;        // Gas cost for L1 batch submission (configurable)
+        this.minGasPerTx = params.minGasPerTx || 200;     // Minimum gas per transaction (configurable)
 
         // L1 basefee trend tracking for cost estimation
         this.l1BasefeeHistory = [];
@@ -135,16 +136,40 @@ class TaikoFeeSimulator {
 
         // Calculate gas per tx based on expected volume (economies of scale)
         this.updateGasPerTx();
+
+        // Initialize mock data tracking
+        this.usingMockData = false;
+        this.mockDataReason = null;
     }
 
     updateGasPerTx() {
-        // CORRECTED: max(200,000 / Expected Tx Volume, 200) - fixed from bug analysis
-        // This implements economies of scale with a 200 gas minimum for overhead
+        // CORRECTED: max(batchGas / Expected Tx Volume, minGasPerTx) - fixed from bug analysis
+        // This implements economies of scale with configurable minimum gas for overhead
         const baseGasPerTx = this.batchGas / this.txsPerBatch;
-        this.gasPerTx = Math.max(baseGasPerTx, 200);
+        this.gasPerTx = Math.max(baseGasPerTx, this.minGasPerTx);
 
-        console.log(`gasPerTx = max(${this.batchGas} / ${this.txsPerBatch}, 200) = max(${baseGasPerTx}, 200) = ${this.gasPerTx} gas`);
+        console.log(`gasPerTx = max(${this.batchGas} / ${this.txsPerBatch}, ${this.minGasPerTx}) = max(${baseGasPerTx}, ${this.minGasPerTx}) = ${this.gasPerTx} gas`);
         console.log(`L1 cost per tx = basefee * ${this.gasPerTx} / 1e18`);
+    }
+
+    /**
+     * Check if simulator is using mock data and issue warnings
+     */
+    validateDataAuthenticity() {
+        if (this.usingMockData) {
+            console.warn('🚨 MOCK DATA DETECTED in simulator');
+            console.warn(`📝 Reason: ${this.mockDataReason}`);
+            console.warn('⚠️  Results may not reflect real-world fee mechanism behavior');
+            return false;
+        }
+
+        if (this.l1Source === 'simulated') {
+            console.warn('⚠️  Using simulated L1 data instead of historical data');
+            console.warn('📊 Consider switching to historical data for more authentic analysis');
+            return false;
+        }
+
+        return true;
     }
 
     getInitialVaultBalance(vaultInit) {
@@ -295,9 +320,17 @@ class TaikoFeeSimulator {
             console.log(`Successfully loaded ${data.length} data points for ${period}. Basefee range: ${data[0]?.basefee_gwei?.toFixed(3)} - ${data[data.length-1]?.basefee_gwei?.toFixed(3)} gwei`);
 
         } catch (error) {
-            console.error('Failed to load historical data:', error);
-            // Fallback to simulated data
+            console.error('🚨 CRITICAL: Failed to load historical data:', error);
+            console.warn('⚠️  MOCK DATA FALLBACK: Switching to simulated L1 data instead of real historical data');
+            console.warn('⚠️  This may affect scientific accuracy of fee mechanism analysis');
+            console.warn('⚠️  Consider fixing data loading issues for authentic results');
+
+            // Explicit fallback to simulated data with clear warning
             this.l1Source = 'simulated';
+
+            // Flag this instance as using mock data
+            this.usingMockData = true;
+            this.mockDataReason = `Historical data load failed: ${error.message}`;
         }
     }
 
