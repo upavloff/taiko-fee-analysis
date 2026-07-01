@@ -2,6 +2,10 @@
 
 A comprehensive scientific analysis framework for the Taiko protocol's fee mechanism, implementing EIP-1559 based fee estimation with vault deficit correction.
 
+**See here:** [taiko-fee-analysis](https://taiko-fee-analysis.pavloffulysse.com/)
+[<img width="1457" height="786" alt="image" src="https://github.com/user-attachments/assets/f54d77c3-04a1-44f5-88c2-29664f0a0bd6" />](https://taiko-fee-analysis.pavloffulysse.com/)
+
+
 ## 🎯 Overview
 
 This repository contains a complete analysis of Taiko's fee mechanism, including:
